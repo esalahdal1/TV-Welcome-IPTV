@@ -342,42 +342,53 @@
         // تحديث الساعة والتاريخ
         function updateClock() {
             const now = new Date();
-            let hours = now.getHours();
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'م' : 'ص';
-            
-            hours = hours % 12;
-            hours = hours ? hours : 12; 
-            
-            document.getElementById('time').innerText = `${hours}:${minutes} ${ampm}`;
-
-            // التاريخ الميلادي (نستخدم ar-EG لضمان بقائه ميلادياً)
-            const gregDate = now.toLocaleDateString('ar-EG', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-
-            // التاريخ الهجري (تقويم القرى)
+            let timeText = "";
+            let gregDate = "";
             let hijriDate = "";
+
             try {
+                timeText = new Intl.DateTimeFormat('ar-SA', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    timeZone: 'Asia/Riyadh'
+                }).format(now);
+
+                gregDate = new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    timeZone: 'Asia/Riyadh'
+                }).format(now);
+
                 hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
                     day: 'numeric',
                     month: 'long',
-                    year: 'numeric'
+                    year: 'numeric',
+                    timeZone: 'Asia/Riyadh'
                 }).format(now);
-                
-                // إذا لم يدعم المتصفح التقويم الهجري وعاد الميلادي (مثل 2026)
-                if (hijriDate.includes(now.getFullYear().toString()) || hijriDate.includes('٢٠٢٦')) {
-                    // نستخدم مكتبة أو حساب بسيط تقريبي (1447 هـ)
-                    hijriDate = "شوال 1447"; 
-                }
             } catch (e) {
-                hijriDate = "1447";
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                timeText = `${hours}:${minutes}`;
+                gregDate = now.toLocaleDateString('ar-SA', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+                hijriDate = "";
             }
 
-            document.getElementById('date').innerHTML = `${gregDate}<br>${hijriDate} هـ`;
+            document.getElementById('time').innerText = timeText;
+
+            // التاريخ الهجري (تقويم القرى)
+            if (hijriDate) {
+                document.getElementById('date').innerHTML = `${gregDate}<br>${hijriDate} هـ`;
+            } else {
+                document.getElementById('date').innerText = gregDate;
+            }
         }
         setInterval(updateClock, 1000);
         updateClock();
