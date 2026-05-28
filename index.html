@@ -300,7 +300,7 @@
 
         <div class="remote-hint">
             <span>اضغط</span>
-            <span class="key-badge">1</span>
+            <span class="key-badge">OK</span>
             <span>لزيارة موقعنا الإلكتروني</span>
         </div>
 
@@ -461,8 +461,15 @@
         // مراقبة أزرار الريموت
         document.addEventListener('keydown', function(event) {
             console.log('Key pressed:', event.key);
-            // التعامل مع مختلف أكواد مفتاح "1"
-            if (event.key === '1' || event.code === 'Digit1' || event.keyCode === 49 || event.keyCode === 97) {
+            const keyCode = event.keyCode || event.which || 0;
+            if (
+                event.key === 'Enter' ||
+                event.key === 'OK' ||
+                event.key === 'Select' ||
+                event.code === 'Enter' ||
+                keyCode === 23 ||
+                keyCode === 66
+            ) {
                 window.location.href = 'https://www.masaken-rc.com.sa';
             }
         });
