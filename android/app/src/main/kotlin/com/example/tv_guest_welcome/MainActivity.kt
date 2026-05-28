@@ -24,10 +24,6 @@ import com.example.tv_guest_welcome.R
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
-    private var key5PressCount = 0
-    private var lastKey5Time: Long = 0
-    private var backPressCount = 0
-    private var lastBackTime: Long = 0
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,86 +124,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        // تعطيل زر الرجوع تماماً
-        // super.onBackPressed() // لا نستدعي الأصل لمنع الخروج
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
-            if (event?.repeatCount == 0) {
-                event.startTracking()
-            }
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastBackTime < 2000) {
-                    backPressCount++
-                } else {
-                    backPressCount = 1
-                }
-                lastBackTime = currentTime
-
-                if (backPressCount >= 5) {
-                    backPressCount = 0
-                    showExitPasswordDialog()
-                }
-            }
-            return true
+        if (::webView.isInitialized && webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
         }
-
-        if (keyCode == KeyEvent.KEYCODE_5 || keyCode == KeyEvent.KEYCODE_NUMPAD_5) {
-            val currentTime = System.currentTimeMillis()
-            // إذا كان الوقت بين الضغطات أقل من ثانيتين، نحسبها متتالية
-            if (currentTime - lastKey5Time < 2000) {
-                key5PressCount++
-            } else {
-                key5PressCount = 1
-            }
-            lastKey5Time = currentTime
-
-            if (key5PressCount >= 5) {
-                key5PressCount = 0 // إعادة التصفير
-                showExitPasswordDialog()
-            }
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
-    override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
-            showExitPasswordDialog()
-            return true
-        }
-        return super.onKeyLongPress(keyCode, event)
-    }
-
-    private fun showExitPasswordDialog() {
-        val input = EditText(this)
-        input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
-        
-        AlertDialog.Builder(this)
-            .setTitle("إعدادات الخروج")
-            .setMessage("أدخل الرمز السري للخروج:")
-            .setView(input)
-            .setPositiveButton("خروج") { _, _ ->
-                val password = input.text.toString()
-                if (password == "1112") {
-                    exitToHome()
-                } else {
-                    Toast.makeText(this, "رمز خاطئ!", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("إلغاء", null)
-            .show()
-    }
-
-    private fun exitToHome() {
-        // نفتح اللانشر الافتراضي للنظام
-        val intent = Intent(Intent.ACTION_MAIN)
-        intent.addCategory(Intent.CATEGORY_HOME)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
-        finish()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
