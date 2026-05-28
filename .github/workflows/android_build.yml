@@ -34,8 +34,15 @@ jobs:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     - name: Build with Gradle
-      run: gradle assembleDebug
+      run: gradle assembleRelease
       working-directory: android
+      env:
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    - name: Prepare APK filename
+      run: |
+        mkdir -p android/app/build/outputs/apk/debug
+        cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/debug/app-debug.apk
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
