@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.IBinder
 
 class ScreenService : Service() {
@@ -17,12 +18,19 @@ class ScreenService : Service() {
                 if (intent?.action == Intent.ACTION_SCREEN_ON) {
                     val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                     launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(launchIntent)
+                    runCatching {
+                        if (launchIntent != null) context.startActivity(launchIntent)
+                    }
                 }
             }
         }
         val filter = IntentFilter(Intent.ACTION_SCREEN_ON)
-        registerReceiver(receiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(receiver, filter)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -30,7 +38,8 @@ class ScreenService : Service() {
     }
 
     override fun onDestroy() {
-        unregisterReceiver(receiver)
+        receiver?.let { unregisterReceiver(it) }
+        receiver = null
         super.onDestroy()
     }
 

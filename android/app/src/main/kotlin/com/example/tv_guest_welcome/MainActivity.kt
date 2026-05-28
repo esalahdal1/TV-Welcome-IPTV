@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebSettings
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -25,6 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private var key5PressCount = 0
     private var lastKey5Time: Long = 0
+    private var backPressCount = 0
+    private var lastBackTime: Long = 0
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,8 +87,19 @@ class MainActivity : AppCompatActivity() {
         
         // منع فتح الروابط في متصفح خارجي
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val uri = request.url
+                val scheme = uri.scheme?.lowercase()
+                if (scheme == "http" || scheme == "https") {
+                    view.loadUrl(uri.toString())
+                }
+                return true
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                if (url != null) {
+                val uri = url?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                val scheme = uri?.scheme?.lowercase()
+                if (scheme == "http" || scheme == "https") {
                     view?.loadUrl(url)
                 }
                 return true
@@ -122,6 +136,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
+            if (event?.repeatCount == 0) {
+                event.startTracking()
+            }
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastBackTime < 2000) {
+                    backPressCount++
+                } else {
+                    backPressCount = 1
+                }
+                lastBackTime = currentTime
+
+                if (backPressCount >= 5) {
+                    backPressCount = 0
+                    showExitPasswordDialog()
+                }
+            }
+            return true
+        }
+
         if (keyCode == KeyEvent.KEYCODE_5 || keyCode == KeyEvent.KEYCODE_NUMPAD_5) {
             val currentTime = System.currentTimeMillis()
             // إذا كان الوقت بين الضغطات أقل من ثانيتين، نحسبها متتالية
@@ -139,6 +174,14 @@ class MainActivity : AppCompatActivity() {
             return true
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
+            showExitPasswordDialog()
+            return true
+        }
+        return super.onKeyLongPress(keyCode, event)
     }
 
     private fun showExitPasswordDialog() {
