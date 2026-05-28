@@ -45,9 +45,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // فحص ما إذا كان التطبيق هو اللانشر الافتراضي
-        checkDefaultLauncher()
-
         // جعل النشاط يظهر فوق قفل الشاشة ويشغل الشاشة تلقائياً
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
