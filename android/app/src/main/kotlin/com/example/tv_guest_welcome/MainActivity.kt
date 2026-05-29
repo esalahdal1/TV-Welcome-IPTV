@@ -125,7 +125,6 @@ class MainActivity : AppCompatActivity() {
         //    true
         // }
 
-        startService(Intent(this, ScreenService::class.java))
     }
 
     override fun onDestroy() {
