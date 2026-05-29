@@ -1,11 +1,15 @@
 package com.example.tv_guest_welcome
 
 import android.annotation.SuppressLint
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
@@ -13,17 +17,16 @@ import android.webkit.WebSettings
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-
-import android.content.pm.PackageManager
-import android.view.KeyEvent
-import android.widget.EditText
-import androidx.appcompat.app.AlertDialog
-import com.example.tv_guest_welcome.R
+import androidx.core.content.FileProvider
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
+    private var updateDownloadId: Long? = null
+    private var updateReceiver: BroadcastReceiver? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +68,8 @@ class MainActivity : AppCompatActivity() {
         
         // ربط الـ WebView بالواجهة
         webView = findViewById(R.id.main_webview)
+        val updateButton = findViewById<Button>(R.id.update_button)
+        updateButton.setOnClickListener { downloadAndInstallUpdate() }
         
         // إعدادات الـ WebView لضمان السرعة والتحديث اللحظي
         val settings = webView.settings
@@ -123,6 +128,12 @@ class MainActivity : AppCompatActivity() {
         startService(Intent(this, ScreenService::class.java))
     }
 
+    override fun onDestroy() {
+        updateReceiver?.let { unregisterReceiver(it) }
+        updateReceiver = null
+        super.onDestroy()
+    }
+
     override fun onBackPressed() {
         if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
@@ -142,44 +153,60 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkDefaultLauncher() {
-        if (!isDefaultLauncher()) {
-            AlertDialog.Builder(this)
-                .setTitle("إعداد اللانشر الافتراضي")
-                .setMessage("لضمان عدم خروج العميل من التطبيق، يرجى تعيين هذا التطبيق كواجهة رئيسية (Home App) واختيار 'دائماً'.")
-                .setPositiveButton("تعيين الآن") { _, _ ->
-                    val intent = Intent(Intent.ACTION_MAIN)
-                    intent.addCategory(Intent.CATEGORY_HOME)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    startActivity(intent)
+    private fun downloadAndInstallUpdate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+            startActivity(intent)
+            Toast.makeText(this, "فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم اضغط تحديث مرة أخرى", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val apkUrl = "https://github.com/esalahdal1/TV-Welcome/releases/latest/download/app-debug.apk"
+        val fileName = "masaken-hotel.apk"
+
+        val request = DownloadManager.Request(Uri.parse(apkUrl))
+            .setTitle("masaken hotel")
+            .setDescription("تنزيل تحديث")
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, fileName)
+
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val downloadId = manager.enqueue(request)
+        updateDownloadId = downloadId
+
+        updateReceiver?.let { unregisterReceiver(it) }
+        updateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent?) {
+                val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: return
+                if (id != downloadId) return
+
+                val apkFile = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
+                if (!apkFile.exists()) {
+                    Toast.makeText(this@MainActivity, "فشل تنزيل التحديث", Toast.LENGTH_LONG).show()
+                    return
                 }
-                .setNegativeButton("لاحقاً", null)
-                .show()
-        }
-    }
-
-    private fun isDefaultLauncher(): Boolean {
-        val intent = Intent(Intent.ACTION_MAIN)
-        intent.addCategory(Intent.CATEGORY_HOME)
-        val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.resolveActivity(intent, PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()))
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-        }
-        return resolveInfo?.activityInfo?.packageName == packageName
-    }
-
-    private fun checkOverlayPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "يرجى تفعيل صلاحية الظهور فوق التطبيقات الأخرى ليعمل التطبيق كشاشة توقف", Toast.LENGTH_LONG).show()
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
+                installApk(apkFile)
             }
         }
+
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(updateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(updateReceiver, filter)
+        }
+
+        Toast.makeText(this, "جارٍ تنزيل التحديث...", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun installApk(apkFile: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apkFile)
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivity(intent)
     }
 }
