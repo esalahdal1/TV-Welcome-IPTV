@@ -13,26 +13,11 @@ class BootReceiver : BroadcastReceiver() {
         if (action == Intent.ACTION_BOOT_COMPLETED ||
             action == "android.intent.action.LOCKED_BOOT_COMPLETED" ||
             action == "android.intent.action.QUICKBOOT_POWERON") {
-            startKeeperService(context)
-
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                 ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
             if (launchIntent != null) {
                 scheduleLaunch(context, launchIntent)
-                runCatching { context.startActivity(launchIntent) }
-            }
-        }
-    }
-
-    private fun startKeeperService(context: Context) {
-        val serviceIntent = Intent(context, ScreenService::class.java)
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                @Suppress("DEPRECATION")
-                context.startService(serviceIntent)
             }
         }
     }
@@ -46,7 +31,7 @@ class BootReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
         val pendingIntent = PendingIntent.getActivity(context, 1001, launchIntent, flags)
-        val triggerAt = System.currentTimeMillis() + 3000L
+        val triggerAt = System.currentTimeMillis() + 8000L
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
