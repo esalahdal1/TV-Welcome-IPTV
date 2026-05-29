@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 
 class BootReceiver : BroadcastReceiver() {
@@ -14,7 +13,7 @@ class BootReceiver : BroadcastReceiver() {
         if (action == Intent.ACTION_BOOT_COMPLETED ||
             action == "android.intent.action.LOCKED_BOOT_COMPLETED" ||
             action == "android.intent.action.QUICKBOOT_POWERON") {
-            if (isDefaultLauncher(context)) return
+            startKeeperService(context)
 
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                 ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -26,18 +25,16 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun isDefaultLauncher(context: Context): Boolean {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.resolveActivity(
-                intent,
-                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong())
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+    private fun startKeeperService(context: Context) {
+        val serviceIntent = Intent(context, ScreenService::class.java)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                @Suppress("DEPRECATION")
+                context.startService(serviceIntent)
+            }
         }
-        return resolveInfo?.activityInfo?.packageName == context.packageName
     }
 
     private fun scheduleLaunch(context: Context, launchIntent: Intent) {
