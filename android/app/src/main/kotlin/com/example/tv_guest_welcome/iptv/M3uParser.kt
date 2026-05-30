@@ -2,18 +2,20 @@ package com.example.tv_guest_welcome.iptv
 
 class M3uParser {
     fun parse(text: String): List<Channel> {
-        val lines = text.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .toList()
+        return parseLines(text.lineSequence())
+    }
 
-        val channels = ArrayList<Channel>(lines.size / 2)
+    fun parseLines(lines: Sequence<String>): List<Channel> {
+        val channels = ArrayList<Channel>()
 
         var pendingName: String? = null
         var pendingLogo: String? = null
         var pendingGroup: String? = null
 
-        for (line in lines) {
+        for (rawLine in lines) {
+            val line = rawLine.trim()
+            if (line.isEmpty()) continue
+
             if (line.startsWith("#EXTINF", ignoreCase = true)) {
                 val commaIndex = line.lastIndexOf(',')
                 val header = if (commaIndex >= 0) line.substring(0, commaIndex) else line
@@ -78,4 +80,3 @@ class M3uParser {
         return result
     }
 }
-

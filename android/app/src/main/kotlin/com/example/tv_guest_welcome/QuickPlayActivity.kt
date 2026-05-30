@@ -3,6 +3,7 @@ package com.example.tv_guest_welcome
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.ProgressBar
@@ -63,7 +64,10 @@ class QuickPlayActivity : AppCompatActivity() {
                 startActivity(intent)
                 finish()
             } catch (t: Throwable) {
-                Toast.makeText(this@QuickPlayActivity, "فشل تحميل القنوات", Toast.LENGTH_LONG).show()
+                Log.e("QuickPlayActivity", "Failed to load channels", t)
+                val details = t.message?.trim().orEmpty()
+                val msg = if (details.isNotEmpty()) "فشل تحميل القنوات: $details" else "فشل تحميل القنوات"
+                Toast.makeText(this@QuickPlayActivity, msg, Toast.LENGTH_LONG).show()
                 finish()
             } finally {
                 progress.visibility = View.GONE
@@ -76,4 +80,3 @@ class QuickPlayActivity : AppCompatActivity() {
         super.onDestroy()
     }
 }
-

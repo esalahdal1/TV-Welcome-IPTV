@@ -3,6 +3,7 @@ package com.example.tv_guest_welcome
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -140,11 +141,13 @@ class ChannelsActivity : AppCompatActivity() {
                 categoryAdapter.submit(categories)
                 categoriesList.requestFocus()
             } catch (t: Throwable) {
-                Toast.makeText(this@ChannelsActivity, "فشل تحميل القنوات", Toast.LENGTH_LONG).show()
+                Log.e("ChannelsActivity", "Failed to load channels", t)
+                val details = t.message?.trim().orEmpty()
+                val msg = if (details.isNotEmpty()) "فشل تحميل القنوات: $details" else "فشل تحميل القنوات"
+                Toast.makeText(this@ChannelsActivity, msg, Toast.LENGTH_LONG).show()
             } finally {
                 progress.visibility = View.GONE
             }
         }
     }
 }
-
