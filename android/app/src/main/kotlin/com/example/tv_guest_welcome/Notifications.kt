@@ -31,6 +31,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import java.util.WeakHashMap
 import java.util.concurrent.TimeUnit
 
 object Notifications {
@@ -338,7 +339,7 @@ object Notifications {
 
 private object InAppBanner {
     private const val TAG = "masaken_in_app_banner"
-    private val TAG_HIDE_KEY: Int = View.generateViewId()
+    private val hideRunnables = WeakHashMap<FrameLayout, Runnable>()
 
     fun show(window: Window, message: String) {
         val decor = window.decorView as? ViewGroup ?: return
@@ -382,10 +383,10 @@ private object InAppBanner {
         container.alpha = 0f
         container.visibility = View.VISIBLE
         container.animate().alpha(1f).setDuration(180).start()
-        val old = container.getTag(TAG_HIDE_KEY) as? Runnable
+        val old = hideRunnables[container]
         if (old != null) container.removeCallbacks(old)
         val r = hideRunnable(container)
-        container.setTag(TAG_HIDE_KEY, r)
+        hideRunnables[container] = r
         container.postDelayed(r, 5000L)
     }
 
@@ -394,6 +395,7 @@ private object InAppBanner {
             container.animate().alpha(0f).setDuration(220).withEndAction {
                 container.visibility = View.GONE
                 container.alpha = 1f
+                hideRunnables.remove(container)
             }.start()
         }
     }
