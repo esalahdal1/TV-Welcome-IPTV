@@ -37,6 +37,7 @@ class ChannelsActivity : AppCompatActivity() {
 
     private var horizontalBrowseMode: Boolean = false
     private var initialFocusIndex: Int = 0
+    private var returnToPlayer: Boolean = false
 
     private lateinit var repository: IptvRepository
     private lateinit var imageLoader: ImageLoader
@@ -49,6 +50,7 @@ class ChannelsActivity : AppCompatActivity() {
 
         horizontalBrowseMode = intent.getBooleanExtra(EXTRA_HORIZONTAL_BROWSE, false)
         initialFocusIndex = intent.getIntExtra(EXTRA_FOCUS_INDEX, 0)
+        returnToPlayer = intent.getBooleanExtra(EXTRA_RETURN_TO_PLAYER, false)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
@@ -82,9 +84,17 @@ class ChannelsActivity : AppCompatActivity() {
             val channels = ArrayList(channelAdapter.getChannels())
             IptvRepository.setPlaybackQueue(channels)
 
-            val intent = Intent(this, PlayerActivity::class.java)
-            intent.putExtra(PlayerActivity.EXTRA_START_INDEX, index)
-            startActivity(intent)
+            if (returnToPlayer) {
+                val intent = Intent(this, PlayerActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                intent.putExtra(PlayerActivity.EXTRA_START_INDEX, index)
+                startActivity(intent)
+                finish()
+            } else {
+                val intent = Intent(this, PlayerActivity::class.java)
+                intent.putExtra(PlayerActivity.EXTRA_START_INDEX, index)
+                startActivity(intent)
+            }
         }
 
         categoriesList.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
@@ -205,5 +215,6 @@ class ChannelsActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_HORIZONTAL_BROWSE = "extra_horizontal_browse"
         const val EXTRA_FOCUS_INDEX = "extra_focus_index"
+        const val EXTRA_RETURN_TO_PLAYER = "extra_return_to_player"
     }
 }

@@ -92,6 +92,16 @@ class PlayerActivity : AppCompatActivity() {
         playerView.requestFocus()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val idx = intent.getIntExtra(EXTRA_START_INDEX, currentIndex)
+        val target = idx.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
+        if (target != currentIndex) {
+            playIndex(target)
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         player?.pause()
@@ -127,6 +137,7 @@ class PlayerActivity : AppCompatActivity() {
                 val intent = Intent(this, ChannelsActivity::class.java)
                 intent.putExtra(ChannelsActivity.EXTRA_HORIZONTAL_BROWSE, true)
                 intent.putExtra(ChannelsActivity.EXTRA_FOCUS_INDEX, currentIndex)
+                intent.putExtra(ChannelsActivity.EXTRA_RETURN_TO_PLAYER, true)
                 startActivity(intent)
                 return true
             }

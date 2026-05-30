@@ -12,6 +12,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.view.Gravity
@@ -55,6 +57,9 @@ object Notifications {
         .retryOnConnectionFailure(true)
         .build()
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var foregroundPollRunnable: Runnable? = null
+
     @Volatile
     private var foregroundCallback: ((String) -> Unit)? = null
 
@@ -63,15 +68,21 @@ object Notifications {
 
     fun bindForeground(window: Window, callback: (String) -> Unit) {
         isForeground = true
+        val appContext = window.decorView.context.applicationContext
         foregroundCallback = { msg ->
-            InAppBanner.show(window, msg)
-            callback(msg)
+            mainHandler.post {
+                InAppBanner.show(window, msg)
+                callback(msg)
+            }
         }
+        startForegroundPolling(appContext)
+        pollAsync(appContext)
     }
 
     fun unbindForeground() {
         isForeground = false
         foregroundCallback = null
+        stopForegroundPolling()
     }
 
     fun ensurePostNotificationsPermission(activity: androidx.appcompat.app.AppCompatActivity) {
@@ -302,6 +313,26 @@ object Notifications {
         Thread {
             runCatching { pollOnce(appContext) }
         }.start()
+    }
+
+    private fun startForegroundPolling(context: Context) {
+        if (foregroundPollRunnable != null) return
+        val appContext = context.applicationContext
+        val r = object : Runnable {
+            override fun run() {
+                if (!isForeground) return
+                pollAsync(appContext)
+                mainHandler.postDelayed(this, 20_000L)
+            }
+        }
+        foregroundPollRunnable = r
+        mainHandler.postDelayed(r, 2_000L)
+    }
+
+    private fun stopForegroundPolling() {
+        val r = foregroundPollRunnable ?: return
+        mainHandler.removeCallbacks(r)
+        foregroundPollRunnable = null
     }
 }
 

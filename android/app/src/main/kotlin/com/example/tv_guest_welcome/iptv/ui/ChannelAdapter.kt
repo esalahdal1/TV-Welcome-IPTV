@@ -1,5 +1,7 @@
 package com.example.tv_guest_welcome.iptv.ui
 
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,6 +20,8 @@ class ChannelAdapter(
     private val onClick: (Channel, Int) -> Unit
 ) : RecyclerView.Adapter<ChannelAdapter.VH>() {
     private val items = ArrayList<Channel>()
+    private val focusBgTagKey: Int = View.generateViewId()
+    private val normalBgTagKey: Int = View.generateViewId()
 
     fun submit(channels: List<Channel>) {
         items.clear()
@@ -44,6 +48,32 @@ class ChannelAdapter(
             holder.root.layoutParams = lp
         }
         holder.root.setOnClickListener { onClick(item, position) }
+
+        val density = holder.root.resources.displayMetrics.density
+        val radius = 16f * density
+        val stroke = (2f * density).toInt().coerceAtLeast(1)
+
+        val focusedBg = (holder.root.getTag(focusBgTagKey) as? GradientDrawable) ?: GradientDrawable().apply {
+            cornerRadius = radius
+            setColor(Color.parseColor("#22FFFFFF"))
+            setStroke(stroke, Color.parseColor("#FBBF24"))
+        }.also { holder.root.setTag(focusBgTagKey, it) }
+
+        val normalBg = (holder.root.getTag(normalBgTagKey) as? GradientDrawable) ?: GradientDrawable().apply {
+            cornerRadius = radius
+            setColor(Color.parseColor("#00000000"))
+            setStroke(1, Color.parseColor("#00000000"))
+        }.also { holder.root.setTag(normalBgTagKey, it) }
+
+        fun applyFocusState(hasFocus: Boolean) {
+            holder.root.background = if (hasFocus) focusedBg else normalBg
+            holder.root.animate().scaleX(if (hasFocus) 1.06f else 1f).scaleY(if (hasFocus) 1.06f else 1f).setDuration(90).start()
+        }
+
+        holder.root.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+            applyFocusState(hasFocus)
+        }
+        applyFocusState(holder.root.isFocused)
     }
 
     override fun getItemCount(): Int = items.size
