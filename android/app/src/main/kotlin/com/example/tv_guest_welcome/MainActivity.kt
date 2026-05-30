@@ -22,6 +22,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
+import android.os.PowerManager
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -43,6 +44,8 @@ class MainActivity : AppCompatActivity() {
             finish()
             return
         }
+
+        ensureBatteryOptimizationIgnoredOnce()
 
         // جعل النشاط يظهر فوق قفل الشاشة ويشغل الشاشة تلقائياً
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -210,5 +213,21 @@ class MainActivity : AppCompatActivity() {
             .setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
         startActivity(intent)
+    }
+
+    private fun ensureBatteryOptimizationIgnoredOnce() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+
+        val prefs = getSharedPreferences("TV_PREFS", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("asked_ignore_battery_optimizations", false)) return
+        prefs.edit().putBoolean("asked_ignore_battery_optimizations", true).apply()
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return
+
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            .setData(Uri.parse("package:$packageName"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { startActivity(intent) }
     }
 }
