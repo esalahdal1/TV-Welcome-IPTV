@@ -1,16 +1,22 @@
 package com.example.tv_guest_welcome
 
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Toast
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.example.tv_guest_welcome.iptv.Channel
+import com.example.tv_guest_welcome.iptv.IptvRepository
 
 class PlayerActivity : AppCompatActivity() {
     private lateinit var playerView: PlayerView
@@ -20,9 +26,9 @@ class PlayerActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var hideOverlayRunnable: Runnable? = null
 
-    private var channelNames: ArrayList<String> = arrayListOf()
-    private var channelUrls: ArrayList<String> = arrayListOf()
+    private val channels: ArrayList<Channel> = arrayListOf()
     private var currentIndex: Int = 0
+    private var skipOnErrorInProgress: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,14 +46,45 @@ class PlayerActivity : AppCompatActivity() {
         playerView = findViewById(R.id.player_view)
         overlay = findViewById(R.id.channel_overlay)
 
-        channelNames = intent.getStringArrayListExtra(EXTRA_CHANNEL_NAMES) ?: arrayListOf()
-        channelUrls = intent.getStringArrayListExtra(EXTRA_CHANNEL_URLS) ?: arrayListOf()
-        currentIndex = intent.getIntExtra(EXTRA_START_INDEX, 0).coerceIn(0, (channelUrls.size - 1).coerceAtLeast(0))
+        val fromIntentNames = intent.getStringArrayListExtra(EXTRA_CHANNEL_NAMES)
+        val fromIntentUrls = intent.getStringArrayListExtra(EXTRA_CHANNEL_URLS)
+        val startIndexExtra = intent.getIntExtra(EXTRA_START_INDEX, 0)
+
+        if (!fromIntentNames.isNullOrEmpty() && !fromIntentUrls.isNullOrEmpty() && fromIntentNames.size == fromIntentUrls.size) {
+            for (i in 0 until fromIntentUrls.size) {
+                val url = fromIntentUrls[i].trim()
+                val name = fromIntentNames[i].trim().ifEmpty { "قناة" }
+                if (url.isNotEmpty()) channels.add(Channel(name = name, streamUrl = url))
+            }
+        } else {
+            val queue = IptvRepository.getPlaybackQueue().orEmpty()
+            channels.addAll(queue)
+        }
+
+        filterKnownBadUrlsInPlace()
+        if (channels.isEmpty()) {
+            Toast.makeText(this, "لا توجد قنوات", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        currentIndex = startIndexExtra.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
 
         player = ExoPlayer.Builder(this).build().also {
             playerView.player = it
         }
         playerView.useController = false
+        player?.addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                onPlaybackError()
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    markGoodUrl(channels.getOrNull(currentIndex)?.streamUrl)
+                }
+            }
+        })
 
         playIndex(currentIndex)
         playerView.requestFocus()
@@ -74,15 +111,15 @@ class PlayerActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> {
-                if (channelUrls.isNotEmpty()) {
+                if (channels.isNotEmpty()) {
                     val next = (currentIndex - 1).coerceAtLeast(0)
                     if (next != currentIndex) playIndex(next)
                 }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (channelUrls.isNotEmpty()) {
-                    val next = (currentIndex + 1).coerceAtMost(channelUrls.size - 1)
+                if (channels.isNotEmpty()) {
+                    val next = (currentIndex + 1).coerceAtMost(channels.size - 1)
                     if (next != currentIndex) playIndex(next)
                 }
                 return true
@@ -102,15 +139,72 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun playIndex(index: Int) {
         currentIndex = index
-        val url = channelUrls.getOrNull(index) ?: return
-        val name = channelNames.getOrNull(index) ?: "قناة"
+        val item = channels.getOrNull(index) ?: return
+        val url = item.streamUrl
+        val name = item.name.ifEmpty { "قناة" }
 
-        val item = MediaItem.fromUri(url)
-        player?.setMediaItem(item)
+        val mediaItem = MediaItem.fromUri(url)
+        player?.setMediaItem(mediaItem)
         player?.prepare()
         player?.playWhenReady = true
 
         showOverlay(name)
+    }
+
+    private fun onPlaybackError() {
+        if (skipOnErrorInProgress) return
+        skipOnErrorInProgress = true
+
+        val badUrl = channels.getOrNull(currentIndex)?.streamUrl
+        markBadUrl(badUrl)
+        if (badUrl != null) {
+            channels.removeAll { it.streamUrl == badUrl }
+        }
+
+        if (channels.isEmpty()) {
+            Toast.makeText(this, "لا توجد قنوات تعمل", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        if (currentIndex >= channels.size) {
+            currentIndex = (channels.size - 1).coerceAtLeast(0)
+        }
+
+        showOverlay("تخطي قناة لا تعمل")
+        handler.postDelayed({
+            skipOnErrorInProgress = false
+            playIndex(currentIndex)
+        }, 500L)
+    }
+
+    private fun filterKnownBadUrlsInPlace() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val bad = prefs.getStringSet(PREF_BAD_URLS, emptySet()).orEmpty()
+        if (bad.isEmpty()) return
+        channels.removeAll { bad.contains(it.streamUrl) }
+    }
+
+    private fun markBadUrl(url: String?) {
+        val safe = url?.trim().orEmpty()
+        if (safe.isEmpty()) return
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val existing = prefs.getStringSet(PREF_BAD_URLS, emptySet()).orEmpty()
+        if (existing.contains(safe)) return
+        val updated = HashSet(existing)
+        updated.add(safe)
+        prefs.edit().putStringSet(PREF_BAD_URLS, updated).apply()
+    }
+
+    private fun markGoodUrl(url: String?) {
+        val safe = url?.trim().orEmpty()
+        if (safe.isEmpty()) return
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val existing = prefs.getStringSet(PREF_GOOD_URLS, emptySet()).orEmpty()
+        if (existing.contains(safe)) return
+        val updated = HashSet(existing)
+        updated.add(safe)
+        prefs.edit().putStringSet(PREF_GOOD_URLS, updated).apply()
     }
 
     private fun showOverlay(text: String) {
@@ -128,6 +222,10 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val PREFS_NAME = "IPTV_PREFS"
+        private const val PREF_BAD_URLS = "bad_urls"
+        private const val PREF_GOOD_URLS = "good_urls"
+
         const val EXTRA_CHANNEL_NAMES = "extra_channel_names"
         const val EXTRA_CHANNEL_URLS = "extra_channel_urls"
         const val EXTRA_START_INDEX = "extra_start_index"

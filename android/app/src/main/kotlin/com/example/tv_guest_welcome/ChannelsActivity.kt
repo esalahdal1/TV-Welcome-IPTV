@@ -71,16 +71,9 @@ class ChannelsActivity : AppCompatActivity() {
         }
         channelAdapter = ChannelAdapter(scope, imageLoader) { _, index ->
             val channels = ArrayList(channelAdapter.getChannels())
-            val names = ArrayList<String>(channels.size)
-            val urls = ArrayList<String>(channels.size)
-            for (c in channels) {
-                names.add(c.name)
-                urls.add(c.streamUrl)
-            }
+            IptvRepository.setPlaybackQueue(channels)
 
             val intent = Intent(this, PlayerActivity::class.java)
-            intent.putStringArrayListExtra(PlayerActivity.EXTRA_CHANNEL_NAMES, names)
-            intent.putStringArrayListExtra(PlayerActivity.EXTRA_CHANNEL_URLS, urls)
             intent.putExtra(PlayerActivity.EXTRA_START_INDEX, index)
             startActivity(intent)
         }
@@ -135,10 +128,18 @@ class ChannelsActivity : AppCompatActivity() {
         scope.launch {
             try {
                 val categories = repository.getCategories(forceRefresh)
-                if (categories.isEmpty()) {
+                val prefs = getSharedPreferences("IPTV_PREFS", Context.MODE_PRIVATE)
+                val bad = prefs.getStringSet("bad_urls", emptySet()).orEmpty()
+                val filtered = if (bad.isEmpty()) {
+                    categories
+                } else {
+                    categories.map { c -> c.copy(channels = c.channels.filterNot { bad.contains(it.streamUrl) }) }
+                }.filter { it.title == "الكل" || it.channels.isNotEmpty() }
+
+                if (filtered.isEmpty() || filtered.firstOrNull { it.title == "الكل" }?.channels.isNullOrEmpty()) {
                     Toast.makeText(this@ChannelsActivity, "لا توجد قنوات", Toast.LENGTH_LONG).show()
                 }
-                categoryAdapter.submit(categories)
+                categoryAdapter.submit(filtered)
                 categoriesList.requestFocus()
             } catch (t: Throwable) {
                 Log.e("ChannelsActivity", "Failed to load channels", t)

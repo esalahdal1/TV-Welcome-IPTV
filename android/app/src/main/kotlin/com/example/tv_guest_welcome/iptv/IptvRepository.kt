@@ -12,6 +12,17 @@ class IptvRepository(
     private val provider: IptvProvider,
     private val cacheTtlMs: Long = 6 * 60 * 60 * 1000L
 ) {
+    companion object {
+        @Volatile
+        private var playbackQueue: List<Channel>? = null
+
+        fun setPlaybackQueue(channels: List<Channel>) {
+            playbackQueue = channels.toList()
+        }
+
+        fun getPlaybackQueue(): List<Channel>? = playbackQueue
+    }
+
     private val cacheFile: File = File(context.filesDir, "iptv_channels_cache.json")
 
     suspend fun getChannels(forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
@@ -105,4 +116,3 @@ class IptvRepository(
         return out
     }
 }
-

@@ -50,16 +50,17 @@ class QuickPlayActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                val names = ArrayList<String>(channels.size)
-                val urls = ArrayList<String>(channels.size)
-                for (c in channels) {
-                    names.add(c.name)
-                    urls.add(c.streamUrl)
+                val bad = prefs.getStringSet("bad_urls", emptySet()).orEmpty()
+                val filtered = if (bad.isEmpty()) channels else channels.filterNot { bad.contains(it.streamUrl) }
+                if (filtered.isEmpty()) {
+                    Toast.makeText(this@QuickPlayActivity, "لا توجد قنوات تعمل", Toast.LENGTH_LONG).show()
+                    finish()
+                    return@launch
                 }
 
+                IptvRepository.setPlaybackQueue(filtered)
+
                 val intent = Intent(this@QuickPlayActivity, PlayerActivity::class.java)
-                intent.putStringArrayListExtra(PlayerActivity.EXTRA_CHANNEL_NAMES, names)
-                intent.putStringArrayListExtra(PlayerActivity.EXTRA_CHANNEL_URLS, urls)
                 intent.putExtra(PlayerActivity.EXTRA_START_INDEX, 0)
                 startActivity(intent)
                 finish()
