@@ -17,18 +17,20 @@ class ScreenService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var registered = false
     private var stopRunnable: Runnable? = null
+    private var hasAttemptedLaunch = false
 
     private val triggerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
-            attemptLaunch()
+            attemptLaunchOnce()
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureForeground()
         ensureRegistered()
-        scheduleAttempts()
-        return START_STICKY
+        scheduleStop()
+        handler.postDelayed({ attemptLaunchOnce() }, 5000L)
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -54,21 +56,20 @@ class ScreenService : Service() {
         registered = true
     }
 
-    private fun scheduleAttempts() {
-        handler.postDelayed({ attemptLaunch() }, 2000L)
-        handler.postDelayed({ attemptLaunch() }, 8000L)
-        handler.postDelayed({ attemptLaunch() }, 15000L)
-
+    private fun scheduleStop() {
         stopRunnable?.let { handler.removeCallbacks(it) }
         stopRunnable = Runnable { stopSelf() }
-        handler.postDelayed(stopRunnable!!, 120_000L)
+        handler.postDelayed(stopRunnable!!, 30_000L)
     }
 
-    private fun attemptLaunch() {
+    private fun attemptLaunchOnce() {
+        if (hasAttemptedLaunch) return
+        hasAttemptedLaunch = true
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             ?: return
         runCatching { startActivity(launchIntent) }
+        handler.postDelayed({ stopSelf() }, 3000L)
     }
 
     private fun ensureForeground() {
