@@ -296,9 +296,12 @@
             color: transparent;
             -webkit-text-fill-color: transparent;
             line-height: 1.08;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            max-width: 980px;
+            margin-left: auto;
+            margin-right: auto;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .guest-name.is-loading {
@@ -556,6 +559,24 @@
             const h = parseFloat(rootStyle.getPropertyValue('--stage-h')) || 1080;
             const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
             document.documentElement.style.setProperty('--stage-scale', String(scale));
+            fitGuestName();
+        }
+
+        function fitGuestName() {
+            const el = document.getElementById('guestName');
+            if (!el) return;
+            if (el.classList.contains('is-loading')) return;
+            const s = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stage-scale')) || 1;
+            const maxHeight = 240 * s;
+            const maxFont = 108;
+            const minFont = 54;
+            const step = 2;
+            el.style.fontSize = `${maxFont}px`;
+            for (let size = maxFont; size >= minFont; size -= step) {
+                el.style.fontSize = `${size}px`;
+                const h = el.getBoundingClientRect().height;
+                if (h <= maxHeight) break;
+            }
         }
 
         applyStageScale();
@@ -696,6 +717,7 @@
             if (!room) {
                 nameElement.classList.remove('is-loading');
                 nameElement.innerText = "ضيفنا العزيز";
+                fitGuestName();
                 return;
             }
 
@@ -703,6 +725,7 @@
                 if (!_supabase) {
                     nameElement.classList.remove('is-loading');
                     nameElement.innerText = "ضيفنا العزيز";
+                    fitGuestName();
                     return;
                 }
                 const { data, error } = await _supabase
@@ -714,14 +737,17 @@
                 if (data && data.full_name) {
                     nameElement.classList.remove('is-loading');
                     nameElement.innerText = data.full_name;
+                    fitGuestName();
                 } else {
                     nameElement.classList.remove('is-loading');
                     nameElement.innerText = "ضيفنا العزيز";
+                    fitGuestName();
                 }
             } catch (err) {
                 console.error('Error:', err);
                 nameElement.classList.remove('is-loading');
                 nameElement.innerText = "ضيفنا العزيز";
+                fitGuestName();
             }
         }
         fetchGuest();
