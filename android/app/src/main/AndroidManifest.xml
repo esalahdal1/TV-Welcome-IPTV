@@ -38,6 +38,16 @@
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
 
+        <activity
+            android:name=".ChannelsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"

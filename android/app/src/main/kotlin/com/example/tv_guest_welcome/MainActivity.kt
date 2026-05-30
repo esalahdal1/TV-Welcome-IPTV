@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebSettings
@@ -137,6 +138,14 @@ class MainActivity : AppCompatActivity() {
         updateReceiver?.let { unregisterReceiver(it) }
         updateReceiver = null
         super.onDestroy()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            startActivity(Intent(this, ChannelsActivity::class.java))
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onBackPressed() {
