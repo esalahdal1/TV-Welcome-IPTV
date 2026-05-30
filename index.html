@@ -25,6 +25,9 @@
             --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
             --radius-xl: 28px;
             --radius-lg: 18px;
+            --stage-w: 1920;
+            --stage-h: 1080;
+            --stage-scale: 1;
         }
 
         * { box-sizing: border-box; }
@@ -86,6 +89,16 @@
             pointer-events: none;
         }
 
+        .stage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: calc(var(--stage-w) * 1px);
+            height: calc(var(--stage-h) * 1px);
+            transform: translate(-50%, -50%) scale(var(--stage-scale));
+            transform-origin: center;
+        }
+
         .particle {
             position: absolute;
             width: var(--s);
@@ -106,7 +119,7 @@
         }
 
         .main-content {
-            min-height: 100vh;
+            height: 100%;
             display: grid;
             grid-template-rows: auto 1fr auto;
             padding: 56px 72px 44px;
@@ -134,7 +147,7 @@
         }
 
         .time {
-            font-size: clamp(3.2rem, 4.3vw, 4.4rem);
+            font-size: 86px;
             font-weight: 900;
             line-height: 1.02;
             letter-spacing: -1px;
@@ -146,7 +159,7 @@
         }
 
         .date {
-            font-size: 1rem;
+            font-size: 20px;
             font-weight: 300;
             opacity: 0.86;
             margin-top: 6px;
@@ -176,7 +189,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 1.85rem;
+            font-size: 34px;
             font-weight: 800;
         }
 
@@ -188,7 +201,7 @@
         }
 
         .weather-desc {
-            font-size: 0.9rem;
+            font-size: 18px;
             color: var(--muted);
             max-width: 320px;
             overflow: hidden;
@@ -197,7 +210,7 @@
         }
 
         .weather-city {
-            font-size: 0.78rem;
+            font-size: 16px;
             color: var(--muted2);
             letter-spacing: 0.2px;
         }
@@ -250,7 +263,7 @@
         }
 
         .hotel-name {
-            font-size: 1.25rem;
+            font-size: 24px;
             font-weight: 800;
             letter-spacing: 6px;
             color: rgba(251, 191, 36, 0.95);
@@ -266,14 +279,14 @@
         }
 
         .welcome-msg {
-            font-size: clamp(1.9rem, 2.1vw, 2.35rem);
+            font-size: 44px;
             font-weight: 200;
             margin: 0 0 10px;
             opacity: 0.92;
         }
 
         .guest-name {
-            font-size: clamp(3.2rem, 5.5vw, 5.4rem);
+            font-size: 108px;
             font-weight: 900;
             margin: 0 0 14px;
             text-shadow: 0 22px 60px rgba(0,0,0,0.55);
@@ -283,6 +296,9 @@
             color: transparent;
             -webkit-text-fill-color: transparent;
             line-height: 1.08;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .guest-name.is-loading {
@@ -323,7 +339,7 @@
             border: 1px solid rgba(255,255,255,0.14);
             background: rgba(255,255,255,0.06);
             color: rgba(255,255,255,0.78);
-            font-size: 0.92rem;
+            font-size: 18px;
             backdrop-filter: blur(10px);
         }
 
@@ -333,7 +349,7 @@
         }
 
         .welcome-sub {
-            font-size: 1.28rem;
+            font-size: 28px;
             font-weight: 300;
             opacity: 0.72;
             max-width: 760px;
@@ -358,8 +374,6 @@
             align-items: center;
             gap: 10px;
             color: rgba(255,255,255,0.70);
-            width: max-content;
-            max-width: 100%;
             justify-self: end;
         }
 
@@ -385,8 +399,6 @@
             align-items: center;
             gap: 14px;
             padding: 14px 18px;
-            width: max-content;
-            max-width: 100%;
             justify-self: start;
         }
 
@@ -402,13 +414,13 @@
         }
 
         .company-name {
-            font-size: 0.88rem;
+            font-size: 18px;
             font-weight: 800;
             color: rgba(248, 250, 252, 0.95);
         }
 
         .company-sub {
-            font-size: 0.66rem;
+            font-size: 14px;
             opacity: 0.55;
             letter-spacing: 0.7px;
         }
@@ -442,15 +454,6 @@
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        @media (max-width: 980px) {
-            .main-content { padding: 40px 22px 28px; gap: 18px; }
-            .top-bar, .bottom-bar { grid-template-columns: 1fr; }
-            .bottom-bar { grid-template-areas: "hint" "footer"; }
-            .remote-hint, .footer { width: 100%; justify-self: stretch; }
-            .weather-meta { text-align: right; }
-            .footer { justify-content: flex-start; }
-        }
-
         @media (prefers-reduced-motion: reduce) {
             .animated-bg::before { animation: none; }
             .particle { animation: none; opacity: 0.25; }
@@ -463,6 +466,7 @@
     <div class="animated-bg"></div>
     <div id="particles" class="particles"></div>
 
+    <div id="stage" class="stage">
     <div class="main-content">
         <div class="top-bar fade-in">
             <div class="clock-container panel">
@@ -526,6 +530,7 @@
             </div>
         </div>
     </div>
+    </div>
 
     <script>
         // إعدادات Supabase
@@ -544,6 +549,17 @@
 
         const { createClient } = supabase;
         const _supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+        function applyStageScale() {
+            const rootStyle = getComputedStyle(document.documentElement);
+            const w = parseFloat(rootStyle.getPropertyValue('--stage-w')) || 1920;
+            const h = parseFloat(rootStyle.getPropertyValue('--stage-h')) || 1080;
+            const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
+            document.documentElement.style.setProperty('--stage-scale', String(scale));
+        }
+
+        applyStageScale();
+        window.addEventListener('resize', applyStageScale);
 
         // إنشاء جزيئات عائمة
         function createParticles() {
