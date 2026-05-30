@@ -34,7 +34,7 @@ jobs:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     - name: Build with Gradle
-      run: gradle assembleRelease
+      run: gradle assembleRelease --stacktrace --info --warning-mode all
       working-directory: android
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
