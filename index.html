@@ -317,10 +317,21 @@
 
     <script>
         // إعدادات Supabase
-        const SUPABASE_URL = 'https://cewbmexcmhrogbvyfvrg.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_MCDhff2Dztq4pp3ASoWX3A_inNp10mx';
+        const params = new URLSearchParams(window.location.search);
+        const SUPABASE_URL =
+            params.get('sbUrl') ||
+            localStorage.getItem('SB_URL') ||
+            'https://ayfvvzawdbdcsiugazvn.supabase.co';
+        const SUPABASE_KEY =
+            params.get('sbKey') ||
+            localStorage.getItem('SB_KEY') ||
+            '';
+
+        if (params.get('sbUrl')) localStorage.setItem('SB_URL', params.get('sbUrl'));
+        if (params.get('sbKey')) localStorage.setItem('SB_KEY', params.get('sbKey'));
+
         const { createClient } = supabase;
-        const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        const _supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
         // إنشاء جزيئات عائمة
         function createParticles() {
@@ -431,6 +442,10 @@
             }
 
             try {
+                if (!_supabase) {
+                    nameElement.innerText = "ضيفنا العزيز";
+                    return;
+                }
                 const { data, error } = await _supabase
                     .from('guests')
                     .select('full_name')
