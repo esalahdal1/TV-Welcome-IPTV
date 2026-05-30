@@ -141,6 +141,7 @@ class ChannelsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Notifications.bindForeground(window) { }
+        runCatching { Notifications.pollOnce(this) }
     }
 
     override fun onPause() {

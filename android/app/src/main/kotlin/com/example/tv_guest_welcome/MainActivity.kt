@@ -37,6 +37,9 @@ class MainActivity : AppCompatActivity() {
         // تم إلغاء فحص الصلاحية يدوياً لتجنب تعليق الشاشات البسيطة
         // checkOverlayPermission()
 
+        Notifications.ensurePostNotificationsPermission(this)
+        Notifications.ensureScheduled(this)
+
         val prefs = getSharedPreferences("TV_PREFS", Context.MODE_PRIVATE)
         val roomNumber = prefs.getString("room_number", null)
 
@@ -45,9 +48,6 @@ class MainActivity : AppCompatActivity() {
             finish()
             return
         }
-
-        Notifications.ensurePostNotificationsPermission(this)
-        Notifications.ensureScheduled(this)
 
         ensureBatteryOptimizationIgnoredOnce()
 
@@ -146,6 +146,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Notifications.bindForeground(window) { }
+        runCatching { Notifications.pollOnce(this) }
     }
 
     override fun onPause() {

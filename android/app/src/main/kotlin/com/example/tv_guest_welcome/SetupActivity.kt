@@ -19,6 +19,9 @@ class SetupActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setup)
 
+        Notifications.ensurePostNotificationsPermission(this)
+        Notifications.ensureScheduled(this)
+
         val input = findViewById<EditText>(R.id.room_number_input)
         val button = findViewById<Button>(R.id.save_button)
 
@@ -44,6 +47,8 @@ class SetupActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Notifications.bindForeground(window) { }
+        runCatching { Notifications.pollOnce(this) }
         val input = findViewById<EditText>(R.id.room_number_input)
         val button = findViewById<Button>(R.id.save_button)
 
@@ -72,5 +77,10 @@ class SetupActivity : AppCompatActivity() {
             .onFailure {
                 Toast.makeText(this, "لم يتم العثور على شاشة السماح بالظهور فوق التطبيقات في هذا الجهاز", Toast.LENGTH_LONG).show()
             }
+    }
+
+    override fun onPause() {
+        Notifications.unbindForeground()
+        super.onPause()
     }
 }

@@ -84,10 +84,12 @@ object Notifications {
         val pending = pollPendingIntent(context)
         val triggerAt = SystemClock.elapsedRealtime() + 15_000L
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
-        } else {
-            alarm.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+            } else {
+                alarm.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+            }
         }
 
         alarm.setInexactRepeating(
@@ -102,10 +104,12 @@ object Notifications {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pending = pollPendingIntent(context)
         val triggerAt = SystemClock.elapsedRealtime() + delayMs
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
-        } else {
-            alarm.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarm.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+            } else {
+                alarm.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+            }
         }
     }
 
@@ -262,41 +266,45 @@ object Notifications {
         val pending = receiver.goAsync()
         Thread {
             try {
-                val room = readRoomNumber(context)
-                val nowMs = System.currentTimeMillis()
-                processDeferred(context, nowMs)
-
-                val lastSeen = getLastSeen(context)
-                val items = fetchNew(context, room, lastSeen)
-                if (items.isEmpty()) return@Thread
-
-                var maxCreatedAt: String? = lastSeen
-                val interactive = isInteractive(context)
-                for (o in items) {
-                    val message = o.optString("message", "").trim()
-                    val createdAt = o.optString("created_at", "").trim()
-                    if (message.isEmpty() || createdAt.isEmpty()) continue
-                    maxCreatedAt = createdAt
-
-                    if (!interactive) {
-                        deferMessage(context, message, nowMs + DEFER_MS)
-                    } else {
-                        deliverNow(context, message)
-                    }
-                }
-
-                if (!maxCreatedAt.isNullOrEmpty()) {
-                    setLastSeen(context, maxCreatedAt)
-                }
-
-                if (!interactive) {
-                    scheduleOneShot(context, DEFER_MS)
-                }
+                pollOnce(context)
             } catch (_: Throwable) {
             } finally {
                 pending.finish()
             }
         }.start()
+    }
+
+    fun pollOnce(context: Context) {
+        val room = readRoomNumber(context)
+        val nowMs = System.currentTimeMillis()
+        processDeferred(context, nowMs)
+
+        val lastSeen = getLastSeen(context)
+        val items = fetchNew(context, room, lastSeen)
+        if (items.isEmpty()) return
+
+        var maxCreatedAt: String? = lastSeen
+        val interactive = isInteractive(context)
+        for (o in items) {
+            val message = o.optString("message", "").trim()
+            val createdAt = o.optString("created_at", "").trim()
+            if (message.isEmpty() || createdAt.isEmpty()) continue
+            maxCreatedAt = createdAt
+
+            if (!interactive) {
+                deferMessage(context, message, nowMs + DEFER_MS)
+            } else {
+                deliverNow(context, message)
+            }
+        }
+
+        if (!maxCreatedAt.isNullOrEmpty()) {
+            setLastSeen(context, maxCreatedAt)
+        }
+
+        if (!interactive) {
+            scheduleOneShot(context, DEFER_MS)
+        }
     }
 }
 
