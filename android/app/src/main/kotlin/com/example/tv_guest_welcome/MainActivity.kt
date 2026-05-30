@@ -56,6 +56,8 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         // إعدادات الشاشة الكاملة
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -68,6 +70,7 @@ class MainActivity : AppCompatActivity() {
         
         // ربط الـ WebView بالواجهة
         webView = findViewById(R.id.main_webview)
+        webView.keepScreenOn = true
         val updateButton = findViewById<Button>(R.id.update_button)
         updateButton.setOnClickListener { downloadAndInstallUpdate() }
         
