@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import okhttp3.OkHttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
@@ -181,29 +182,18 @@ object Notifications {
     }
 
     private fun fetchNew(context: Context, roomNumber: String?, lastSeen: String?): List<JSONObject> {
-        val base = "$SUPABASE_URL/rest/v1/tv_notifications"
-        val select = "select=id,room_number,message,created_at"
-        val audience = if (roomNumber.isNullOrEmpty()) {
-            "room_number=is.null"
+        val base = "$SUPABASE_URL/rest/v1/tv_notifications".toHttpUrl().newBuilder()
+        base.addQueryParameter("select", "id,room_number,message,created_at")
+        if (roomNumber.isNullOrEmpty()) {
+            base.addQueryParameter("room_number", "is.null")
         } else {
-            "or=(room_number.is.null,room_number.eq.$roomNumber)"
+            base.addQueryParameter("or", "(room_number.is.null,room_number.eq.$roomNumber)")
         }
-        val order = "order=created_at.asc"
-        val filter = lastSeen?.let { "created_at=gt.$it" }
-
-        val url = buildString {
-            append(base)
-            append("?")
-            append(select)
-            append("&")
-            append(audience)
-            append("&")
-            append(order)
-            if (!filter.isNullOrEmpty()) {
-                append("&")
-                append(filter)
-            }
+        base.addQueryParameter("order", "created_at.asc")
+        if (!lastSeen.isNullOrEmpty()) {
+            base.addQueryParameter("created_at", "gt.$lastSeen")
         }
+        val url = base.build()
 
         val request = Request.Builder()
             .url(url)
