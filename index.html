@@ -9,263 +9,453 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;700;900&display=swap');
 
-        body, html {
+        :root {
+            --bg0: #020617;
+            --bg1: #0b1226;
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass2: rgba(255, 255, 255, 0.10);
+            --stroke: rgba(255, 255, 255, 0.12);
+            --text: rgba(255, 255, 255, 0.92);
+            --muted: rgba(255, 255, 255, 0.62);
+            --muted2: rgba(255, 255, 255, 0.42);
+            --gold: #fbbf24;
+            --gold2: #f59e0b;
+            --cyan: #22d3ee;
+            --indigo: #818cf8;
+            --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+            --radius-xl: 28px;
+            --radius-lg: 18px;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
             font-family: 'Cairo', sans-serif;
-            background: #020617;
-            color: white;
+            background: var(--bg0);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
         }
 
-        /* خلفية حيوية متطورة */
         .animated-bg {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #0f172a, #1e1b4b, #312e81, #1e1b4b, #0f172a);
-            background-size: 400% 400%;
-            animation: gradientBG 20s ease infinite;
-            z-index: -1;
+            inset: 0;
+            z-index: -3;
+            background:
+                radial-gradient(1200px 600px at 10% 15%, rgba(129, 140, 248, 0.24) 0%, rgba(129, 140, 248, 0) 60%),
+                radial-gradient(900px 650px at 85% 20%, rgba(34, 211, 238, 0.18) 0%, rgba(34, 211, 238, 0) 62%),
+                radial-gradient(1200px 900px at 60% 90%, rgba(245, 158, 11, 0.14) 0%, rgba(245, 158, 11, 0) 62%),
+                linear-gradient(135deg, #020617 0%, #0b1226 45%, #070a18 100%);
+        }
+
+        .animated-bg::before {
+            content: '';
+            position: absolute;
+            inset: -40%;
+            background: conic-gradient(from 180deg at 50% 50%, rgba(129, 140, 248, 0.18), rgba(34, 211, 238, 0.12), rgba(245, 158, 11, 0.10), rgba(129, 140, 248, 0.18));
+            filter: blur(90px);
+            opacity: 0.9;
+            animation: aurora 18s ease-in-out infinite;
         }
 
         .animated-bg::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 100%);
+            inset: 0;
+            background:
+                radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.0) 45%),
+                radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.0) 0%, rgba(0, 0, 0, 0.55) 100%);
+            z-index: 0;
         }
 
-        /* جزيئات ضوئية عائمة */
+        @keyframes aurora {
+            0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.0); }
+            50% { transform: translate3d(3%, -2%, 0) rotate(22deg) scale(1.05); }
+            100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.0); }
+        }
+
         .particles {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
+            inset: 0;
+            z-index: -2;
+            pointer-events: none;
         }
 
         .particle {
             position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            pointer-events: none;
-            animation: float 15s infinite linear;
+            width: var(--s);
+            height: var(--s);
+            left: var(--x);
+            top: var(--y);
+            border-radius: 999px;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 45%, rgba(255,255,255,0.02) 70%, rgba(255,255,255,0) 100%);
+            opacity: var(--o);
+            filter: blur(0.2px);
+            animation: floatUp var(--d) linear infinite;
+            transform: translate3d(0, 110vh, 0);
         }
 
-        @keyframes float {
-            0% { transform: translateY(100vh) scale(0); opacity: 0; }
-            50% { opacity: 0.5; }
-            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        @keyframes floatUp {
+            0% { transform: translate3d(0, 110vh, 0) scale(0.85); }
+            100% { transform: translate3d(0, -30vh, 0) scale(1.25); }
         }
 
         .main-content {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            padding: 56px 72px 44px;
+            gap: 26px;
             position: relative;
-            padding: 0 50px;
         }
 
-        /* الهيدر: الساعة والطقس */
         .top-bar {
-            position: absolute;
-            top: 50px;
-            width: 50%;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: start;
+            gap: 18px;
+        }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: var(--radius-xl);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 60px rgba(0,0,0,0.32);
         }
 
         .clock-container {
-            text-align: right;
+            padding: 22px 24px;
         }
 
         .time {
-            font-size: 4rem;
+            font-size: clamp(3.2rem, 4.3vw, 4.4rem);
             font-weight: 900;
-            line-height: 1;
+            line-height: 1.02;
             letter-spacing: -1px;
-            background: linear-gradient(to bottom, #ffffff, #94a3b8);
+            background: linear-gradient(to bottom, rgba(255,255,255,1), rgba(148,163,184,0.9));
+            background-clip: text;
             -webkit-background-clip: text;
+            color: transparent;
             -webkit-text-fill-color: transparent;
         }
 
         .date {
             font-size: 1rem;
             font-weight: 300;
-            opacity: 0.8;
-            margin-top: 5px;
+            opacity: 0.86;
+            margin-top: 6px;
+            line-height: 1.35;
         }
 
         .weather-container {
+            padding: 18px 22px;
             display: flex;
             flex-direction: column;
+            gap: 10px;
+        }
+
+        div#weather {
+            color: #f0b628;
+            height: 147.945px;
+        }
+
+        .weather-row {
+            display: flex;
             align-items: center;
-            background: rgba(255,255,255,0.05);
-            padding: 12px 25px;
-            border-radius: 20px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            justify-content: space-between;
+            gap: 14px;
         }
 
         .weather-info {
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 1.8rem;
-            font-weight: 700;
+            font-size: 1.85rem;
+            font-weight: 800;
+        }
+
+        .weather-meta {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .weather-desc {
+            font-size: 0.9rem;
+            color: var(--muted);
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .weather-city {
-            font-size: 0.8rem;
-            opacity: 0.6;
-            margin-top: 3px;
+            font-size: 0.78rem;
+            color: var(--muted2);
+            letter-spacing: 0.2px;
         }
 
-        /* المحتوى الرئيسي */
+        .hero {
+            display: grid;
+            place-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-card {
+            width: min(1120px, 100%);
+            padding: 44px 50px 38px;
+            border-radius: calc(var(--radius-xl) + 6px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(251,191,36,0.35) 0%, rgba(34,211,238,0.20) 35%, rgba(129,140,248,0.18) 70%, rgba(251,191,36,0.22) 100%);
+            opacity: 0.65;
+            filter: blur(26px);
+            transform: translate3d(0, 0, 0);
+            z-index: 0;
+        }
+
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(2,6,23,0.35), rgba(2,6,23,0.65));
+            z-index: 0;
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 1;
+        }
+
         .hotel-brand {
-            margin-bottom: 30px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 28px;
         }
 
         .hotel-name {
-            font-size: 1.5rem;
-            font-weight: 700;
+            font-size: 1.25rem;
+            font-weight: 800;
             letter-spacing: 6px;
-            color: #fbbf24;
+            color: rgba(251, 191, 36, 0.95);
             text-transform: uppercase;
-            margin-bottom: 8px;
-            text-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+            text-shadow: 0 0 18px rgba(251, 191, 36, 0.22);
+        }
+
+        .brand-line {
+            width: 84px;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(245,158,11,0), rgba(245,158,11,1), rgba(245,158,11,0));
+            border-radius: 2px;
         }
 
         .welcome-msg {
-            font-size: 2.2rem;
+            font-size: clamp(1.9rem, 2.1vw, 2.35rem);
             font-weight: 200;
-            margin-bottom: 8px;
-            opacity: 0.9;
+            margin: 0 0 10px;
+            opacity: 0.92;
         }
 
         .guest-name {
-            font-size: 5rem;
+            font-size: clamp(3.2rem, 5.5vw, 5.4rem);
             font-weight: 900;
-            margin-bottom: 15px;
-            text-shadow: 0 20px 50px rgba(0,0,0,0.6);
-            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            margin: 0 0 14px;
+            text-shadow: 0 22px 60px rgba(0,0,0,0.55);
+            background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(203,213,225,0.92) 100%);
+            background-clip: text;
             -webkit-background-clip: text;
+            color: transparent;
             -webkit-text-fill-color: transparent;
-            line-height: 1.1;
+            line-height: 1.08;
+        }
+
+        .guest-name.is-loading {
+            position: relative;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .guest-name.is-loading::after {
+            content: '';
+            display: block;
+            height: 1.1em;
+            border-radius: 14px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.20), rgba(255,255,255,0.08));
+            background-size: 200% 100%;
+            animation: shimmer 1.3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        .pill-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 0 16px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.78);
+            font-size: 0.92rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .pill strong {
+            color: rgba(255,255,255,0.92);
+            font-weight: 900;
         }
 
         .welcome-sub {
-            font-size: 1.4rem;
+            font-size: 1.28rem;
             font-weight: 300;
-            opacity: 0.6;
-            max-width: 700px;
+            opacity: 0.72;
+            max-width: 760px;
+            margin: 0 auto;
+            line-height: 1.75;
         }
 
-        /* الفوتر واللوجو */
-        .footer {
-            position: absolute;
-            bottom: 40px;
-            right: 50px;
-            display: flex;
+        .bottom-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: "footer hint";
+            align-items: end;
+            gap: 18px;
+        }
+
+        .remote-hint {
+            grid-area: hint;
+            padding: 14px 18px;
+            border-radius: var(--radius-lg);
+            display: inline-flex;
+            justify-content: flex-start;
             align-items: center;
-            gap: 15px;
-            padding: 10px 20px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.05);
-            transition: all 0.3s ease;
+            gap: 10px;
+            color: rgba(255,255,255,0.70);
+            width: max-content;
+            max-width: 100%;
+            justify-self: end;
+        }
+
+        div.main-content > div.bottom-bar > div.remote-hint {
+            width: 300px;
+            height: 102px;
+        }
+
+        .key-badge {
+            background: linear-gradient(180deg, var(--gold), var(--gold2));
+            color: #1a1202;
+            padding: 3px 12px;
+            border-radius: 10px;
+            font-weight: 900;
+            box-shadow: 0 6px 0 rgba(180, 83, 9, 0.9);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .footer {
+            grid-area: footer;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            width: max-content;
+            max-width: 100%;
+            justify-self: start;
+        }
+
+        div.main-content > div.bottom-bar > div.footer {
+            width: 300px;
         }
 
         .company-info {
             text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
         }
 
         .company-name {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #f8fafc;
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: rgba(248, 250, 252, 0.95);
         }
 
         .company-sub {
-            font-size: 0.65rem;
-            opacity: 0.5;
-            letter-spacing: 0.5px;
+            font-size: 0.66rem;
+            opacity: 0.55;
+            letter-spacing: 0.7px;
         }
 
         .logo-box {
-            width: 75px;
-            height: 75px;
-            background: white;
-            border-radius: 50%; /* دائري مثل اللوقو */
+            width: 72px;
+            height: 72px;
+            background: rgba(255,255,255,0.96);
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 5px;
+            padding: 6px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            border: 2px solid #0056b3;
+            box-shadow: 0 14px 34px rgba(0,0,0,0.35);
+            border: 2px solid rgba(0, 86, 179, 0.95);
         }
 
         .logo-box img {
-            width: 90%;
-            height: 90%;
+            width: 92%;
+            height: 92%;
             object-fit: contain;
         }
 
-        /* تلميح الريموت */
-        .remote-hint {
-            position: absolute;
-            bottom: 40px;
-            left: 50px;
-            font-size: 0.9rem;
-            background: rgba(255,255,255,0.05);
-            padding: 10px 20px;
-            border-radius: 25px;
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: rgba(255,255,255,0.6);
-        }
-
-        .key-badge {
-            background: #fbbf24;
-            color: #020617;
-            padding: 2px 12px;
-            border-radius: 8px;
-            font-weight: 900;
-            box-shadow: 0 4px 0 #b45309;
-        }
-
         .fade-in {
-            animation: fadeIn 2.5s cubic-bezier(0.22, 1, 0.36, 1);
+            animation: fadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(40px) scale(0.95); }
+            from { opacity: 0; transform: translateY(28px) scale(0.985); }
             to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 980px) {
+            .main-content { padding: 40px 22px 28px; gap: 18px; }
+            .top-bar, .bottom-bar { grid-template-columns: 1fr; }
+            .bottom-bar { grid-template-areas: "hint" "footer"; }
+            .remote-hint, .footer { width: 100%; justify-self: stretch; }
+            .weather-meta { text-align: right; }
+            .footer { justify-content: flex-start; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .animated-bg::before { animation: none; }
+            .particle { animation: none; opacity: 0.25; }
+            .fade-in { animation: none; }
+            .guest-name.is-loading::after { animation: none; }
         }
     </style>
 </head>
@@ -274,43 +464,65 @@
     <div id="particles" class="particles"></div>
 
     <div class="main-content">
-        <div class="top-bar">
-            <div class="clock-container">
+        <div class="top-bar fade-in">
+            <div class="clock-container panel">
                 <div id="time" class="time">00:00</div>
                 <div id="date" class="date">الأثنين، 23 مارس</div>
             </div>
-            <div id="weather" class="weather-container">
-                <div class="weather-info">
-                    <i id="weather-icon" class="fas fa-cloud-sun"></i>
-                    <span id="temp">--°C</span>
+
+            <div id="weather" class="weather-container panel">
+                <div class="weather-row">
+                    <div class="weather-info">
+                        <i id="weather-icon" class="fas fa-cloud-sun"></i>
+                        <span id="temp">--°C</span>
+                    </div>
+                    <div class="weather-meta">
+                        <div id="weatherDesc" class="weather-desc">—</div>
+                        <div class="weather-city">جدة - حي النزهة، المملكة العربية السعودية</div>
+                    </div>
                 </div>
-                <div class="weather-city">جدة - حي النزهة، المملكة العربية السعودية</div>
             </div>
         </div>
 
-        <div class="fade-in">
-            <div class="hotel-brand">
-                <div class="hotel-name">مساكن النزهة</div>
-                <div style="width: 80px; height: 2px; background: #fbbf24; margin: 0 auto; border-radius: 2px;"></div>
+        <div class="hero fade-in">
+            <div class="hero-card panel">
+                <div class="hero-inner">
+                    <div class="hotel-brand">
+                        <div class="hotel-name">مساكن النزهة</div>
+                        <div class="brand-line"></div>
+                    </div>
+                    <div class="welcome-msg">مرحباً بك</div>
+                    <div id="guestName" class="guest-name is-loading">...</div>
+                    <div class="pill-row">
+                        <div id="roomPill" class="pill" style="display:none">
+                            <span>رقم الغرفة</span>
+                            <strong id="roomNumberText">—</strong>
+                        </div>
+                        <div class="pill">
+                            <span>نتمنى لك</span>
+                            <strong>إقامة مريحة</strong>
+                        </div>
+                    </div>
+                    <div class="welcome-sub">يسعدنا جداً استضافتك، ونتمنى لك إقامة هادئة ومميزة في رحاب مساكن النزهة.</div>
+                </div>
             </div>
-            <div class="welcome-msg">مرحباً بك</div>
-            <div id="guestName" class="guest-name">...</div>
-            <div class="welcome-sub">يسعدنا جداً استضافتك، نتمنى لك إقامة مريحة وهادئة في رحاب مساكن النزهة</div>
         </div>
 
-        <div class="remote-hint">
-            <span>اضغط</span>
-            <span class="key-badge">OK</span>
-            <span>لزيارة موقعنا الإلكتروني</span>
-        </div>
-
-        <div class="footer">
-            <div class="company-info">
-                <div class="company-name">شركة مساكن الرفاهية</div>
-                <div class="company-sub">MASAKEN ALRAFAHYA COMPANY</div>
+        <div class="bottom-bar fade-in">
+            <div class="remote-hint panel">
+                <span>اضغط</span>
+                <span class="key-badge">OK</span>
+                <span>لزيارة موقعنا الإلكتروني</span>
             </div>
-            <div id="logoContainer" class="logo-box">
-                <img src="3%20small.png" alt="MRC" />
+
+            <div class="footer panel">
+                <div class="company-info">
+                    <div class="company-name">شركة مساكن الرفاهية</div>
+                    <div class="company-sub">MASAKEN ALRAFAHYA COMPANY</div>
+                </div>
+                <div id="logoContainer" class="logo-box">
+                    <img src="3%20small.png" alt="MRC" />
+                </div>
             </div>
         </div>
     </div>
@@ -336,15 +548,19 @@
         // إنشاء جزيئات عائمة
         function createParticles() {
             const container = document.getElementById('particles');
-            for (let i = 0; i < 20; i++) {
+            container.innerHTML = '';
+            const particleCount = 24;
+            for (let i = 0; i < particleCount; i++) {
                 const p = document.createElement('div');
                 p.className = 'particle';
-                const size = Math.random() * 5 + 2;
-                p.style.width = size + 'px';
-                p.style.height = size + 'px';
-                p.style.left = Math.random() * 100 + 'vw';
-                p.style.animationDuration = (Math.random() * 10 + 10) + 's';
-                p.style.animationDelay = (Math.random() * 20) + 's';
+                const size = Math.random() * 7 + 6;
+                const duration = Math.random() * 12 + 12;
+                const opacity = Math.random() * 0.38 + 0.12;
+                p.style.setProperty('--s', `${size}px`);
+                p.style.setProperty('--x', `${Math.random() * 100}vw`);
+                p.style.setProperty('--y', `${Math.random() * 100}vh`);
+                p.style.setProperty('--d', `${duration}s`);
+                p.style.setProperty('--o', `${opacity}`);
                 container.appendChild(p);
             }
         }
@@ -414,17 +630,33 @@
                 const desc = data.current_condition[0].weatherDesc[0].value;
                 
                 document.getElementById('temp').innerText = `${temp}°C`;
+                document.getElementById('weatherDesc').innerText = desc || '—';
                 
                 // تحديث الأيقونة بناءً على الوصف (تبسيط)
                 const icon = document.getElementById('weather-icon');
-                if (desc.toLowerCase().includes('sun')) icon.className = 'fas fa-sun';
-                else if (desc.toLowerCase().includes('cloud')) icon.className = 'fas fa-cloud';
-                else if (desc.toLowerCase().includes('rain')) icon.className = 'fas fa-cloud-showers-heavy';
+                const d = (desc || '').toLowerCase();
+                if (d.includes('sun') || d.includes('clear')) icon.className = 'fas fa-sun';
+                else if (d.includes('thunder')) icon.className = 'fas fa-bolt';
+                else if (d.includes('rain') || d.includes('drizzle')) icon.className = 'fas fa-cloud-showers-heavy';
+                else if (d.includes('mist') || d.includes('fog') || d.includes('haze')) icon.className = 'fas fa-smog';
+                else if (d.includes('cloud') || d.includes('overcast')) icon.className = 'fas fa-cloud';
                 else icon.className = 'fas fa-cloud-sun';
 
+                try {
+                    localStorage.setItem('LAST_WEATHER', JSON.stringify({ temp, desc, ts: Date.now() }));
+                } catch (e) {}
             } catch (err) {
                 console.error('Weather error:', err);
-                document.getElementById('temp').innerText = '28°C'; // Fallback
+                try {
+                    const cached = JSON.parse(localStorage.getItem('LAST_WEATHER') || 'null');
+                    if (cached && cached.temp != null) {
+                        document.getElementById('temp').innerText = `${cached.temp}°C`;
+                        document.getElementById('weatherDesc').innerText = cached.desc || '—';
+                        return;
+                    }
+                } catch (e) {}
+                document.getElementById('temp').innerText = '—';
+                document.getElementById('weatherDesc').innerText = '—';
             }
         }
         fetchWeather();
@@ -435,14 +667,25 @@
             const urlParams = new URLSearchParams(window.location.search);
             const room = urlParams.get('room');
             const nameElement = document.getElementById('guestName');
+            const roomPill = document.getElementById('roomPill');
+            const roomNumberText = document.getElementById('roomNumberText');
+
+            if (room) {
+                roomPill.style.display = 'inline-flex';
+                roomNumberText.innerText = room;
+            } else {
+                roomPill.style.display = 'none';
+            }
 
             if (!room) {
+                nameElement.classList.remove('is-loading');
                 nameElement.innerText = "ضيفنا العزيز";
                 return;
             }
 
             try {
                 if (!_supabase) {
+                    nameElement.classList.remove('is-loading');
                     nameElement.innerText = "ضيفنا العزيز";
                     return;
                 }
@@ -453,20 +696,23 @@
                     .maybeSingle();
 
                 if (data && data.full_name) {
+                    nameElement.classList.remove('is-loading');
                     nameElement.innerText = data.full_name;
                 } else {
+                    nameElement.classList.remove('is-loading');
                     nameElement.innerText = "ضيفنا العزيز";
                 }
             } catch (err) {
                 console.error('Error:', err);
+                nameElement.classList.remove('is-loading');
+                nameElement.innerText = "ضيفنا العزيز";
             }
         }
         fetchGuest();
-        setInterval(fetchGuest, 10000);
+        setInterval(fetchGuest, 30000);
 
         // مراقبة أزرار الريموت
         document.addEventListener('keydown', function(event) {
-            console.log('Key pressed:', event.key);
             const keyCode = event.keyCode || event.which || 0;
             if (
                 event.key === 'Enter' ||
