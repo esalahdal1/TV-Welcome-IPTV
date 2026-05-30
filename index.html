@@ -600,11 +600,38 @@
             font-size: 14px;
             min-height: 18px;
         }
+
+        .toast-host {
+            position: fixed;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(980px, 92vw);
+            z-index: 9999;
+            pointer-events: none;
+            display: none;
+        }
+
+        .toast {
+            background: rgba(0, 0, 0, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 16px;
+            backdrop-filter: blur(14px);
+            padding: 14px 18px;
+            color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
     </style>
 </head>
 <body>
     <div class="animated-bg"></div>
     <div id="particles" class="particles"></div>
+    <div id="toastHost" class="toast-host">
+        <div id="toastText" class="toast"></div>
+    </div>
 
     <div id="stage" class="stage">
     <div class="main-content">
@@ -940,6 +967,100 @@
         }
         fetchGuest();
         setInterval(fetchGuest, 30000);
+
+        let toastHideTimer = null;
+        const toastQueue = [];
+        let toastShowing = false;
+
+        function showToast(message) {
+            const host = document.getElementById('toastHost');
+            const text = document.getElementById('toastText');
+            if (!host || !text) return;
+            text.textContent = message;
+            host.style.display = 'block';
+            host.style.opacity = '0';
+            host.animate([{ opacity: 0, transform: 'translateX(-50%) translateY(-6px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0px)' }], { duration: 180, easing: 'ease-out', fill: 'forwards' });
+            if (toastHideTimer) clearTimeout(toastHideTimer);
+            toastHideTimer = setTimeout(() => {
+                host.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
+                setTimeout(() => {
+                    host.style.display = 'none';
+                    toastShowing = false;
+                    flushToastQueue();
+                }, 240);
+            }, 5000);
+        }
+
+        function enqueueToast(message) {
+            if (!message) return;
+            toastQueue.push(message);
+            flushToastQueue();
+        }
+
+        function flushToastQueue() {
+            if (toastShowing) return;
+            const next = toastQueue.shift();
+            if (!next) return;
+            toastShowing = true;
+            showToast(next);
+        }
+
+        function getNotifKey(room) {
+            return `NOTIF_LAST_SEEN_${room || 'ALL'}`;
+        }
+
+        function getRoomParam() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const room = (urlParams.get('room') || '').trim();
+            return room || null;
+        }
+
+        function getIsoNow() {
+            return new Date().toISOString();
+        }
+
+        async function pollNotificationsOnce() {
+            if (IS_ADMIN) return;
+            if (!_supabase) return;
+            const room = getRoomParam();
+            const lastKey = getNotifKey(room);
+            let lastSeen = (localStorage.getItem(lastKey) || '').trim();
+            if (!lastSeen) {
+                lastSeen = getIsoNow();
+                localStorage.setItem(lastKey, lastSeen);
+                return;
+            }
+
+            const q = _supabase
+                .from('tv_notifications')
+                .select('id,room_number,message,created_at')
+                .order('created_at', { ascending: true })
+                .limit(10);
+
+            const q2 = room
+                ? q.or(`room_number.is.null,room_number.eq.${room}`)
+                : q.eq('room_number', null);
+
+            const { data, error } = await q2.gt('created_at', lastSeen);
+            if (error) return;
+
+            const rows = Array.isArray(data) ? data : [];
+            if (rows.length === 0) return;
+
+            let max = lastSeen;
+            for (const r of rows) {
+                const msg = String((r && r.message) || '').trim();
+                const created = String((r && r.created_at) || '').trim();
+                if (created && created > max) max = created;
+                if (msg) enqueueToast(msg);
+            }
+            if (max !== lastSeen) localStorage.setItem(lastKey, max);
+        }
+
+        if (!IS_ADMIN) {
+            setTimeout(() => pollNotificationsOnce(), 3000);
+            setInterval(() => pollNotificationsOnce(), 20000);
+        }
 
         // مراقبة أزرار الريموت
         document.addEventListener('keydown', function(event) {
