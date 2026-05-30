@@ -12,6 +12,12 @@
 - داخل التطبيق يتم فتح:
   - `https://esalahdal1.github.io/TV-Welcome/?room=ROOM_NUMBER`
 
+## كيف يظهر "اسم الضيف" الآن (المهم)
+- التطبيق نفسه لا يجلب الاسم من Kotlin.
+- اسم الضيف يتم جلبه داخل صفحة الويب [index.html](file:///Users/es/MRC%20LAPTOP/%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%D8%A7%D8%AA/TVIP/index.html) عبر Supabase JS:
+  - يقرأ `room` من الرابط.
+  - يستعلم من جدول Supabase اسمه `guests` ويقرأ عمود `full_name` بشرط `room_number = room`.
+
 ## طريقة عمل التطبيق (Android)
 - [MainActivity](file:///Users/es/MRC%20LAPTOP/%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%D8%A7%D8%AA/TVIP/android/app/src/main/kotlin/com/example/tv_guest_welcome/MainActivity.kt)
   - يقرأ رقم الغرفة من `SharedPreferences` باسم `TV_PREFS` والمفتاح `room_number`.
@@ -32,6 +38,28 @@
   - الشعار: استخدام ملف PNG الموجود في المستودع.
   - الساعة: توقيت السعودية (Asia/Riyadh) وبصيغة 12 ساعة.
   - التحكم بالريموت: الاعتماد على OK/Enter بدل الأزرار الرقمية.
+
+## Supabase (المشروع الحالي)
+- Project URL: `https://ayfvvzawdbdcsiugazvn.supabase.co`
+- المفتاح المستخدم في الويب (anon publishable):
+  - `sb_publishable_V5a3JRO2UI371xQ-9MwT8w_J_8XT8Cm`
+- ملاحظة أمنية: بما أن الصفحة مستضافة على GitHub Pages، أي مفتاح داخل HTML يعتبر مكشوف للعموم. لذلك لازم يكون الوصول للبيانات مضبوط بجدول بسيط و/أو RLS مناسب.
+
+## طريقة إعداد Supabase لتعمل الصفحة (بدون أي تغيير في التطبيق)
+- الجدول المطلوب للواجهة الحالية: `public.guests`
+  - الأعمدة المطلوبة:
+    - `room_number`
+    - `full_name`
+- SQL جاهز: الملف [supabase_guests_table_and_rls.sql](file:///Users/es/MRC%20LAPTOP/%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%D8%A7%D8%AA/TVIP/sql/supabase_guests_table_and_rls.sql)
+  - انسخه والصقه في Supabase SQL Editor ثم Run.
+
+## اختبار سريع من اللابتوب
+افتح:
+- `https://esalahdal1.github.io/TV-Welcome/?room=200`
+
+إذا لم يظهر الاسم:
+- تأكد من وجود صف في `public.guests` للغرفة 200.
+- تأكد من RLS/Policy (الملف SQL أعلاه يجهزها).
 
 ## التحديث داخل التطبيق
 - المصدر: GitHub Releases (tag: `latest`)
@@ -67,6 +95,10 @@ adb shell pm install /data/local/tmp/masaken-hotel.apk
 - الهدف: محاولة تشغيله تلقائيًا بعد الإقلاع بدون جعله Launcher، لكن بعض الأجهزة تمنع ذلك بنظامها (BAL_BLOCK) ولا يوجد حل مضمون 100% إلا بجعله Launcher أو بصلاحيات نظام.
 - التطبيق يعمل مع ريموت Fire Stick / Xiaomi TV Stick بدون أزرار رقمية (OK/Back/Menu).
 - وجود زر "تحديث" داخل التطبيق لتنزيل وتثبيت أحدث APK من GitHub.
+
+## SQL Scripts داخل المشروع
+- SQL المطلوب للواجهة الحالية (جدول guests + صلاحيات/سياسة قراءة): [supabase_guests_table_and_rls.sql](file:///Users/es/MRC%20LAPTOP/%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%D8%A7%D8%AA/TVIP/sql/supabase_guests_table_and_rls.sql)
+- SQL خيار أكثر أمانًا (توكن + دالة RPC) غير مستخدم في الواجهة الحالية: [supabase_tv_token_rpc.sql](file:///Users/es/MRC%20LAPTOP/%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%D8%A7%D8%AA/TVIP/sql/supabase_tv_token_rpc.sql)
 
 ## ملفات مهمة
 - Manifest: [AndroidManifest.xml](file:///Users/es/MRC%20LAPTOP/%D8%AA%D8%B7%D8%A8%D9%8A%D9%82%D8%A7%D8%AA/TVIP/android/app/src/main/AndroidManifest.xml)
