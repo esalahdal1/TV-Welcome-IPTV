@@ -722,7 +722,16 @@
 
         const { createClient } = supabase;
         const _supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-        const IS_ADMIN = params.get('admin') === '1';
+
+        function normalizeDigits(input) {
+            return String(input || '')
+                .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+                .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+        }
+
+        const adminParamRaw = (params.get('admin') || '').trim();
+        const adminParam = normalizeDigits(adminParamRaw);
+        const IS_ADMIN = adminParam === '1' || adminParam.toLowerCase() === 'true';
 
         if (IS_ADMIN) {
             const main = document.querySelector('.main-content');
@@ -1044,7 +1053,7 @@
             if (stored === '1') setLoggedIn();
 
             const tryLogin = () => {
-                const code = (pass?.value || '').trim();
+                const code = normalizeDigits((pass?.value || '').trim());
                 if (code !== '1234') {
                     if (loginErr) {
                         loginErr.style.display = 'block';
