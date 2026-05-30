@@ -141,9 +141,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            startActivity(Intent(this, QuickPlayActivity::class.java))
-            return true
+        if (event.action == KeyEvent.ACTION_DOWN &&
+            (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || event.keyCode == KeyEvent.KEYCODE_DPAD_UP)
+        ) {
+            val currentUrl = webView.url?.trim().orEmpty()
+            val uri = runCatching { Uri.parse(currentUrl) }.getOrNull()
+            val host = uri?.host?.lowercase().orEmpty()
+            val path = uri?.path?.lowercase().orEmpty()
+
+            val isWelcomePage = host == "esalahdal1.github.io" && path.startsWith("/tv-welcome/")
+            if (isWelcomePage) {
+                if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    startActivity(Intent(this, QuickPlayActivity::class.java))
+                    return true
+                }
+                if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    val intent = Intent(this, ChannelsActivity::class.java)
+                    intent.putExtra(ChannelsActivity.EXTRA_HORIZONTAL_BROWSE, true)
+                    intent.putExtra(ChannelsActivity.EXTRA_FOCUS_INDEX, 0)
+                    startActivity(intent)
+                    return true
+                }
+            }
         }
         return super.dispatchKeyEvent(event)
     }

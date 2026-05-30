@@ -9,6 +9,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -32,6 +33,10 @@ class ChannelsActivity : AppCompatActivity() {
     private lateinit var channelsList: RecyclerView
     private lateinit var progress: ProgressBar
     private lateinit var refreshButton: Button
+    private lateinit var titleText: TextView
+
+    private var horizontalBrowseMode: Boolean = false
+    private var initialFocusIndex: Int = 0
 
     private lateinit var repository: IptvRepository
     private lateinit var imageLoader: ImageLoader
@@ -41,6 +46,9 @@ class ChannelsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        horizontalBrowseMode = intent.getBooleanExtra(EXTRA_HORIZONTAL_BROWSE, false)
+        initialFocusIndex = intent.getIntExtra(EXTRA_FOCUS_INDEX, 0)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
@@ -56,6 +64,7 @@ class ChannelsActivity : AppCompatActivity() {
         channelsList = findViewById(R.id.channels_list)
         progress = findViewById(R.id.loading_progress)
         refreshButton = findViewById(R.id.refresh_button)
+        titleText = findViewById(R.id.title_text)
 
         imageLoader = ImageLoader()
 
@@ -69,7 +78,7 @@ class ChannelsActivity : AppCompatActivity() {
                 channelsList.scrollToPosition(0)
             }
         }
-        channelAdapter = ChannelAdapter(scope, imageLoader) { _, index ->
+        channelAdapter = ChannelAdapter(scope, imageLoader, if (horizontalBrowseMode) 260 else null) { _, index ->
             val channels = ArrayList(channelAdapter.getChannels())
             IptvRepository.setPlaybackQueue(channels)
 
@@ -81,29 +90,43 @@ class ChannelsActivity : AppCompatActivity() {
         categoriesList.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
         categoriesList.adapter = categoryAdapter
 
-        channelsList.layoutManager = GridLayoutManager(this, 2, RecyclerView.VERTICAL, false)
+        channelsList.layoutManager = if (horizontalBrowseMode) {
+            LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+        } else {
+            GridLayoutManager(this, 2, RecyclerView.VERTICAL, false)
+        }
         channelsList.adapter = channelAdapter
 
-        categoriesList.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    channelsList.requestFocus()
-                    true
+        if (!horizontalBrowseMode) {
+            categoriesList.setOnKeyListener { _, keyCode, event ->
+                if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        channelsList.requestFocus()
+                        true
+                    }
+                    else -> false
                 }
-                else -> false
             }
-        }
 
-        channelsList.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    categoriesList.requestFocus()
-                    true
+            channelsList.setOnKeyListener { _, keyCode, event ->
+                if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        categoriesList.requestFocus()
+                        true
+                    }
+                    else -> false
                 }
-                else -> false
             }
+        } else {
+            categoriesList.visibility = View.GONE
+            val lp = channelsList.layoutParams
+            if (lp is android.view.ViewGroup.MarginLayoutParams) {
+                lp.marginStart = 0
+                channelsList.layoutParams = lp
+            }
+            titleText.text = "القنوات"
         }
 
         refreshButton.setOnClickListener { load(forceRefresh = true) }
@@ -127,20 +150,36 @@ class ChannelsActivity : AppCompatActivity() {
         progress.visibility = View.VISIBLE
         scope.launch {
             try {
-                val categories = repository.getCategories(forceRefresh)
                 val prefs = getSharedPreferences("IPTV_PREFS", Context.MODE_PRIVATE)
                 val bad = prefs.getStringSet("bad_urls", emptySet()).orEmpty()
-                val filtered = if (bad.isEmpty()) {
-                    categories
-                } else {
-                    categories.map { c -> c.copy(channels = c.channels.filterNot { bad.contains(it.streamUrl) }) }
-                }.filter { it.title == "الكل" || it.channels.isNotEmpty() }
 
-                if (filtered.isEmpty() || filtered.firstOrNull { it.title == "الكل" }?.channels.isNullOrEmpty()) {
-                    Toast.makeText(this@ChannelsActivity, "لا توجد قنوات", Toast.LENGTH_LONG).show()
+                if (horizontalBrowseMode) {
+                    val channels = repository.getChannels(forceRefresh)
+                    val filteredChannels = if (bad.isEmpty()) channels else channels.filterNot { bad.contains(it.streamUrl) }
+                    if (filteredChannels.isEmpty()) {
+                        Toast.makeText(this@ChannelsActivity, "لا توجد قنوات", Toast.LENGTH_LONG).show()
+                    }
+                    channelAdapter.submit(filteredChannels)
+                    val target = initialFocusIndex.coerceIn(0, (filteredChannels.size - 1).coerceAtLeast(0))
+                    channelsList.post {
+                        channelsList.scrollToPosition(target)
+                        channelsList.requestFocus()
+                        channelsList.findViewHolderForAdapterPosition(target)?.itemView?.requestFocus()
+                    }
+                } else {
+                    val categories = repository.getCategories(forceRefresh)
+                    val filtered = if (bad.isEmpty()) {
+                        categories
+                    } else {
+                        categories.map { c -> c.copy(channels = c.channels.filterNot { bad.contains(it.streamUrl) }) }
+                    }.filter { it.title == "الكل" || it.channels.isNotEmpty() }
+
+                    if (filtered.isEmpty() || filtered.firstOrNull { it.title == "الكل" }?.channels.isNullOrEmpty()) {
+                        Toast.makeText(this@ChannelsActivity, "لا توجد قنوات", Toast.LENGTH_LONG).show()
+                    }
+                    categoryAdapter.submit(filtered)
+                    categoriesList.requestFocus()
                 }
-                categoryAdapter.submit(filtered)
-                categoriesList.requestFocus()
             } catch (t: Throwable) {
                 Log.e("ChannelsActivity", "Failed to load channels", t)
                 val details = t.message?.trim().orEmpty()
@@ -150,5 +189,10 @@ class ChannelsActivity : AppCompatActivity() {
                 progress.visibility = View.GONE
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_HORIZONTAL_BROWSE = "extra_horizontal_browse"
+        const val EXTRA_FOCUS_INDEX = "extra_focus_index"
     }
 }

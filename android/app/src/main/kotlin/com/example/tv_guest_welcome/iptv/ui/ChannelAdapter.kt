@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 class ChannelAdapter(
     private val scope: CoroutineScope,
     private val imageLoader: ImageLoader,
+    private val itemWidthDp: Int? = null,
     private val onClick: (Channel, Int) -> Unit
 ) : RecyclerView.Adapter<ChannelAdapter.VH>() {
     private val items = ArrayList<Channel>()
@@ -35,6 +36,13 @@ class ChannelAdapter(
         val item = items[position]
         holder.name.text = item.name
         imageLoader.load(scope, item.logoUrl, holder.logo, android.R.drawable.ic_media_play)
+        val lp = holder.root.layoutParams
+        if (lp != null) {
+            lp.width = itemWidthDp?.let { dp ->
+                (dp * holder.root.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+            } ?: ViewGroup.LayoutParams.MATCH_PARENT
+            holder.root.layoutParams = lp
+        }
         holder.root.setOnClickListener { onClick(item, position) }
     }
 
@@ -46,4 +54,3 @@ class ChannelAdapter(
         val name: TextView = view.findViewById(R.id.channel_name)
     }
 }
-

@@ -1,6 +1,7 @@
 package com.example.tv_guest_welcome
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -62,6 +63,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         filterKnownBadUrlsInPlace()
+        IptvRepository.setPlaybackQueue(channels)
         if (channels.isEmpty()) {
             Toast.makeText(this, "لا توجد قنوات", Toast.LENGTH_LONG).show()
             finish()
@@ -110,7 +112,14 @@ class PlayerActivity : AppCompatActivity() {
                 finish()
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> {
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                val intent = Intent(this, ChannelsActivity::class.java)
+                intent.putExtra(ChannelsActivity.EXTRA_HORIZONTAL_BROWSE, true)
+                intent.putExtra(ChannelsActivity.EXTRA_FOCUS_INDEX, currentIndex)
+                startActivity(intent)
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
                 if (channels.isNotEmpty()) {
                     val next = (currentIndex - 1).coerceAtLeast(0)
                     if (next != currentIndex) playIndex(next)
@@ -160,6 +169,7 @@ class PlayerActivity : AppCompatActivity() {
         if (badUrl != null) {
             channels.removeAll { it.streamUrl == badUrl }
         }
+        IptvRepository.setPlaybackQueue(channels)
 
         if (channels.isEmpty()) {
             Toast.makeText(this, "لا توجد قنوات تعمل", Toast.LENGTH_LONG).show()
