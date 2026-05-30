@@ -100,7 +100,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Notifications.bindForeground(window) { }
-        runCatching { Notifications.pollOnce(this) }
+        Notifications.pollAsync(this)
     }
 
     override fun onPause() {

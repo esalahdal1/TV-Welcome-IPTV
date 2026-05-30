@@ -48,7 +48,7 @@ class SetupActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Notifications.bindForeground(window) { }
-        runCatching { Notifications.pollOnce(this) }
+        Notifications.pollAsync(this)
         val input = findViewById<EditText>(R.id.room_number_input)
         val button = findViewById<Button>(R.id.save_button)
 

@@ -306,6 +306,13 @@ object Notifications {
             scheduleOneShot(context, DEFER_MS)
         }
     }
+
+    fun pollAsync(context: Context) {
+        val appContext = context.applicationContext
+        Thread {
+            runCatching { pollOnce(appContext) }
+        }.start()
+    }
 }
 
 private object InAppBanner {
