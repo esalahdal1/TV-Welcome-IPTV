@@ -298,7 +298,7 @@ object Notifications {
 
 private object InAppBanner {
     private const val TAG = "masaken_in_app_banner"
-    private const val TAG_HIDE = "masaken_in_app_banner_hide"
+    private val TAG_HIDE_KEY: Int = View.generateViewId()
 
     fun show(window: Window, message: String) {
         val decor = window.decorView as? ViewGroup ?: return
@@ -342,10 +342,10 @@ private object InAppBanner {
         container.alpha = 0f
         container.visibility = View.VISIBLE
         container.animate().alpha(1f).setDuration(180).start()
-        val old = container.getTag(TAG_HIDE) as? Runnable
+        val old = container.getTag(TAG_HIDE_KEY) as? Runnable
         if (old != null) container.removeCallbacks(old)
         val r = hideRunnable(container)
-        container.setTag(TAG_HIDE, r)
+        container.setTag(TAG_HIDE_KEY, r)
         container.postDelayed(r, 5000L)
     }
 
