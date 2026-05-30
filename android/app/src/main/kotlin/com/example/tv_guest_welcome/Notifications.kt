@@ -176,10 +176,14 @@ object Notifications {
         return pm.isInteractive
     }
 
-    private fun fetchNew(context: Context, roomNumber: String, lastSeen: String?): List<JSONObject> {
+    private fun fetchNew(context: Context, roomNumber: String?, lastSeen: String?): List<JSONObject> {
         val base = "$SUPABASE_URL/rest/v1/tv_notifications"
         val select = "select=id,room_number,message,created_at"
-        val or = "or=(room_number.is.null,room_number.eq.$roomNumber)"
+        val audience = if (roomNumber.isNullOrEmpty()) {
+            "room_number=is.null"
+        } else {
+            "or=(room_number.is.null,room_number.eq.$roomNumber)"
+        }
         val order = "order=created_at.asc"
         val filter = lastSeen?.let { "created_at=gt.$it" }
 
@@ -188,7 +192,7 @@ object Notifications {
             append("?")
             append(select)
             append("&")
-            append(or)
+            append(audience)
             append("&")
             append(order)
             if (!filter.isNullOrEmpty()) {
@@ -258,7 +262,7 @@ object Notifications {
         val pending = receiver.goAsync()
         Thread {
             try {
-                val room = readRoomNumber(context) ?: return@Thread
+                val room = readRoomNumber(context)
                 val nowMs = System.currentTimeMillis()
                 processDeferred(context, nowMs)
 
