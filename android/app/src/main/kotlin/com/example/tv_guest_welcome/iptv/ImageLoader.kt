@@ -37,7 +37,8 @@ class ImageLoader(
         inFlight.remove(imageView)?.cancel()
         imageView.setImageResource(placeholderRes)
 
-        val job = scope.launch(Dispatchers.IO) {
+        var job: Job? = null
+        job = scope.launch(Dispatchers.IO) {
             val request = Request.Builder().url(safeUrl).build()
             val bitmap = runCatching {
                 client.newCall(request).execute().use { resp ->
