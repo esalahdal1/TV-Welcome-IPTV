@@ -44,6 +44,11 @@
             android:screenOrientation="landscape" />
 
         <activity
+            android:name=".QuickPlayActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
             android:name=".PlayerActivity"
             android:exported="false"
             android:screenOrientation="landscape" />

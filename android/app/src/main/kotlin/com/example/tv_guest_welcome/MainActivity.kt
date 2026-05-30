@@ -142,7 +142,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            startActivity(Intent(this, ChannelsActivity::class.java))
+            startActivity(Intent(this, QuickPlayActivity::class.java))
             return true
         }
         return super.dispatchKeyEvent(event)

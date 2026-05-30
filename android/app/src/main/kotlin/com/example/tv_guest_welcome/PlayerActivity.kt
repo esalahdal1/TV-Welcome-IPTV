@@ -73,14 +73,14 @@ class PlayerActivity : AppCompatActivity() {
                 finish()
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_UP -> {
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> {
                 if (channelUrls.isNotEmpty()) {
                     val next = (currentIndex - 1).coerceAtLeast(0)
                     if (next != currentIndex) playIndex(next)
                 }
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (channelUrls.isNotEmpty()) {
                     val next = (currentIndex + 1).coerceAtMost(channelUrls.size - 1)
                     if (next != currentIndex) playIndex(next)
@@ -133,4 +133,3 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_START_INDEX = "extra_start_index"
     }
 }
-
