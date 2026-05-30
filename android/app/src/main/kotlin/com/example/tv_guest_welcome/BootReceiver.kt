@@ -20,6 +20,7 @@ class BootReceiver : BroadcastReceiver() {
                     @Suppress("DEPRECATION")
                     context.startService(serviceIntent)
                 }
+                Notifications.ensureScheduled(context)
             }
         } catch (t: Throwable) {
             Log.e("BootReceiver", "Failed handling boot broadcast", t)

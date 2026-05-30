@@ -463,6 +463,143 @@
             .fade-in { animation: none; }
             .guest-name.is-loading::after { animation: none; }
         }
+
+        .admin-root {
+            position: fixed;
+            inset: 0;
+            padding: 56px 72px 44px;
+            display: none;
+        }
+
+        .admin-card {
+            height: 100%;
+            padding: 22px 22px;
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 14px;
+        }
+
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .admin-title {
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .admin-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .admin-row input {
+            flex: 1;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            padding: 0 14px;
+            outline: none;
+            font-family: 'Cairo', sans-serif;
+            font-size: 16px;
+        }
+
+        .admin-btn {
+            height: 44px;
+            padding: 0 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(251, 191, 36, 0.18);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .admin-btn.secondary {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .admin-err {
+            color: #fecaca;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .admin-list {
+            overflow: auto;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.16);
+        }
+
+        .admin-item {
+            display: grid;
+            grid-template-columns: 160px 1fr 160px;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.10);
+        }
+
+        .admin-item:last-child { border-bottom: none; }
+
+        .admin-room { font-weight: 900; }
+        .admin-name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .admin-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(10px);
+        }
+
+        .admin-modal-card {
+            width: min(820px, 92vw);
+            padding: 18px 18px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .admin-modal-title {
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .admin-modal textarea {
+            width: 100%;
+            min-height: 120px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            padding: 12px 14px;
+            outline: none;
+            font-family: 'Cairo', sans-serif;
+            font-size: 16px;
+            resize: none;
+        }
+
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .admin-status {
+            color: var(--muted);
+            font-size: 14px;
+            min-height: 18px;
+        }
     </style>
 </head>
 <body>
@@ -535,6 +672,39 @@
     </div>
     </div>
 
+    <div id="adminRoot" class="admin-root">
+        <div class="admin-card panel">
+            <div class="admin-header">
+                <div class="admin-title">لوحة الإدارة</div>
+                <button id="adminSendAll" class="admin-btn">ارسال اشعار للكل</button>
+            </div>
+
+            <div id="adminLogin">
+                <div class="admin-row">
+                    <input id="adminPass" type="password" inputmode="numeric" placeholder="الرمز السري" />
+                    <button id="adminLoginBtn" class="admin-btn">دخول</button>
+                </div>
+                <div id="adminLoginErr" class="admin-err" style="display:none"></div>
+            </div>
+
+            <div id="adminPanel" style="display:none">
+                <div id="adminList" class="admin-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminModal" class="admin-modal">
+        <div class="admin-modal-card panel">
+            <div id="adminModalTitle" class="admin-modal-title">ارسال اشعار</div>
+            <textarea id="adminMsg" placeholder="اكتب نص الاشعار هنا..."></textarea>
+            <div class="admin-actions">
+                <button id="adminCancel" class="admin-btn secondary">إلغاء</button>
+                <button id="adminSend" class="admin-btn">إرسال</button>
+            </div>
+            <div id="adminStatus" class="admin-status"></div>
+        </div>
+    </div>
+
     <script>
         // إعدادات Supabase
         const params = new URLSearchParams(window.location.search);
@@ -552,6 +722,14 @@
 
         const { createClient } = supabase;
         const _supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+        const IS_ADMIN = params.get('admin') === '1';
+
+        if (IS_ADMIN) {
+            const main = document.querySelector('.main-content');
+            if (main) main.style.display = 'none';
+            const adminRoot = document.getElementById('adminRoot');
+            if (adminRoot) adminRoot.style.display = 'block';
+        }
 
         function applyStageScale() {
             const rootStyle = getComputedStyle(document.documentElement);
@@ -701,6 +879,7 @@
 
         // جلب اسم النزيل
         async function fetchGuest() {
+            if (IS_ADMIN) return;
             const urlParams = new URLSearchParams(window.location.search);
             const room = urlParams.get('room');
             const nameElement = document.getElementById('guestName');
@@ -755,6 +934,7 @@
 
         // مراقبة أزرار الريموت
         document.addEventListener('keydown', function(event) {
+            if (IS_ADMIN) return;
             const keyCode = event.keyCode || event.which || 0;
             if (
                 event.key === 'Enter' ||
@@ -767,6 +947,137 @@
                 window.location.href = 'https://www.masaken-rc.com.sa';
             }
         });
+
+        function openAdminModal(targetRoom) {
+            const modal = document.getElementById('adminModal');
+            const title = document.getElementById('adminModalTitle');
+            const msg = document.getElementById('adminMsg');
+            const status = document.getElementById('adminStatus');
+            if (!modal || !title || !msg || !status) return;
+            modal.style.display = 'flex';
+            title.innerText = targetRoom ? `ارسال اشعار - شقة ${targetRoom}` : 'ارسال اشعار للكل';
+            msg.value = '';
+            msg.dataset.room = targetRoom || '';
+            status.innerText = '';
+            setTimeout(() => msg.focus(), 50);
+        }
+
+        function closeAdminModal() {
+            const modal = document.getElementById('adminModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function loadAdminGuests() {
+            const list = document.getElementById('adminList');
+            if (!list) return;
+            if (!_supabase) {
+                list.innerHTML = '<div class="admin-item"><div class="admin-room">خطأ</div><div class="admin-name">Supabase غير متوفر</div><div></div></div>';
+                return;
+            }
+            list.innerHTML = '<div class="admin-item"><div class="admin-room">تحميل...</div><div class="admin-name"></div><div></div></div>';
+            const { data, error } = await _supabase
+                .from('guests')
+                .select('room_number, full_name')
+                .order('room_number', { ascending: true });
+            if (error) {
+                list.innerHTML = `<div class="admin-item"><div class="admin-room">خطأ</div><div class="admin-name">${error.message || 'فشل التحميل'}</div><div></div></div>`;
+                return;
+            }
+            const rows = (data || []).filter(r => r && r.room_number);
+            if (rows.length === 0) {
+                list.innerHTML = '<div class="admin-item"><div class="admin-room">لا يوجد</div><div class="admin-name">لا توجد شقق</div><div></div></div>';
+                return;
+            }
+            list.innerHTML = rows.map(r => {
+                const room = String(r.room_number || '').trim();
+                const name = String(r.full_name || '').trim() || '—';
+                return `
+                    <div class="admin-item">
+                        <div class="admin-room">${room}</div>
+                        <div class="admin-name">${name}</div>
+                        <button class="admin-btn" data-room="${room}">ارسال</button>
+                    </div>
+                `;
+            }).join('');
+            list.querySelectorAll('button[data-room]').forEach(btn => {
+                btn.addEventListener('click', () => openAdminModal(btn.getAttribute('data-room') || ''));
+            });
+        }
+
+        async function sendAdminNotification(targetRoom, message) {
+            const status = document.getElementById('adminStatus');
+            if (status) status.innerText = 'جارٍ الإرسال...';
+            if (!_supabase) {
+                if (status) status.innerText = 'Supabase غير متوفر';
+                return;
+            }
+            const payload = { message: message };
+            if (targetRoom) payload.room_number = targetRoom;
+            const { error } = await _supabase.from('tv_notifications').insert([payload]);
+            if (error) {
+                if (status) status.innerText = error.message || 'فشل الإرسال';
+                return;
+            }
+            if (status) status.innerText = 'تم الإرسال';
+            setTimeout(() => closeAdminModal(), 650);
+        }
+
+        function initAdmin() {
+            const pass = document.getElementById('adminPass');
+            const loginBtn = document.getElementById('adminLoginBtn');
+            const loginErr = document.getElementById('adminLoginErr');
+            const loginBox = document.getElementById('adminLogin');
+            const panel = document.getElementById('adminPanel');
+            const sendAll = document.getElementById('adminSendAll');
+            const cancel = document.getElementById('adminCancel');
+            const send = document.getElementById('adminSend');
+            const msg = document.getElementById('adminMsg');
+
+            const stored = sessionStorage.getItem('ADMIN_OK');
+            const setLoggedIn = () => {
+                if (loginBox) loginBox.style.display = 'none';
+                if (panel) panel.style.display = 'block';
+                loadAdminGuests();
+                setInterval(loadAdminGuests, 20000);
+            };
+
+            if (stored === '1') setLoggedIn();
+
+            const tryLogin = () => {
+                const code = (pass?.value || '').trim();
+                if (code !== '1234') {
+                    if (loginErr) {
+                        loginErr.style.display = 'block';
+                        loginErr.innerText = 'رمز غير صحيح';
+                    }
+                    return;
+                }
+                sessionStorage.setItem('ADMIN_OK', '1');
+                if (loginErr) loginErr.style.display = 'none';
+                setLoggedIn();
+            };
+
+            if (loginBtn) loginBtn.addEventListener('click', tryLogin);
+            if (pass) pass.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') tryLogin();
+            });
+
+            if (sendAll) sendAll.addEventListener('click', () => openAdminModal(''));
+            if (cancel) cancel.addEventListener('click', () => closeAdminModal());
+            if (send) send.addEventListener('click', () => {
+                const text = (msg?.value || '').trim();
+                if (!text) return;
+                const room = (msg?.dataset.room || '').trim();
+                sendAdminNotification(room, text);
+            });
+
+            const modal = document.getElementById('adminModal');
+            if (modal) modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeAdminModal();
+            });
+        }
+
+        if (IS_ADMIN) initAdmin();
     </script>
 </body>
 </html>

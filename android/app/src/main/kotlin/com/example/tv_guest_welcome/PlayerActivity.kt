@@ -97,6 +97,16 @@ class PlayerActivity : AppCompatActivity() {
         player?.pause()
     }
 
+    override fun onResume() {
+        super.onResume()
+        Notifications.bindForeground(window) { }
+    }
+
+    override fun onPause() {
+        Notifications.unbindForeground()
+        super.onPause()
+    }
+
     override fun onDestroy() {
         hideOverlayRunnable?.let { handler.removeCallbacks(it) }
         hideOverlayRunnable = null

@@ -46,6 +46,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        Notifications.ensurePostNotificationsPermission(this)
+        Notifications.ensureScheduled(this)
+
         ensureBatteryOptimizationIgnoredOnce()
 
         // جعل النشاط يظهر فوق قفل الشاشة ويشغل الشاشة تلقائياً
@@ -138,6 +141,16 @@ class MainActivity : AppCompatActivity() {
         updateReceiver?.let { unregisterReceiver(it) }
         updateReceiver = null
         super.onDestroy()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Notifications.bindForeground(window) { }
+    }
+
+    override fun onPause() {
+        Notifications.unbindForeground()
+        super.onPause()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

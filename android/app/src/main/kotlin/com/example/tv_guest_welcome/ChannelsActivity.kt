@@ -138,6 +138,16 @@ class ChannelsActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    override fun onResume() {
+        super.onResume()
+        Notifications.bindForeground(window) { }
+    }
+
+    override fun onPause() {
+        Notifications.unbindForeground()
+        super.onPause()
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             finish()
