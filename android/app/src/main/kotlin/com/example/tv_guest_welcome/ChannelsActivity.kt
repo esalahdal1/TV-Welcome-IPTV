@@ -80,7 +80,7 @@ class ChannelsActivity : AppCompatActivity() {
                 channelsList.scrollToPosition(0)
             }
         }
-        channelAdapter = ChannelAdapter(scope, imageLoader, if (horizontalBrowseMode) 260 else null) { _, index ->
+        channelAdapter = ChannelAdapter(scope, imageLoader, null) { _, index ->
             val channels = ArrayList(channelAdapter.getChannels())
             IptvRepository.setPlaybackQueue(channels)
 
@@ -89,11 +89,13 @@ class ChannelsActivity : AppCompatActivity() {
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 intent.putExtra(PlayerActivity.EXTRA_START_INDEX, index)
                 startActivity(intent)
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 finish()
             } else {
                 val intent = Intent(this, PlayerActivity::class.java)
                 intent.putExtra(PlayerActivity.EXTRA_START_INDEX, index)
                 startActivity(intent)
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
             }
         }
 
@@ -101,11 +103,21 @@ class ChannelsActivity : AppCompatActivity() {
         categoriesList.adapter = categoryAdapter
 
         channelsList.layoutManager = if (horizontalBrowseMode) {
-            LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+            GridLayoutManager(this, 3, RecyclerView.VERTICAL, false)
         } else {
-            GridLayoutManager(this, 2, RecyclerView.VERTICAL, false)
+            GridLayoutManager(this, 3, RecyclerView.VERTICAL, false)
         }
         channelsList.adapter = channelAdapter
+        channelsList.setHasFixedSize(true)
+        channelsList.itemAnimator?.apply {
+            addDuration = 120
+            changeDuration = 120
+            moveDuration = 120
+            removeDuration = 120
+        }
+        if (channelsList.itemDecorationCount == 0) {
+            channelsList.addItemDecoration(SpacingDecoration(dpToPx(12), dpToPx(12)))
+        }
 
         if (!horizontalBrowseMode) {
             categoriesList.setOnKeyListener { _, keyCode, event ->
@@ -162,6 +174,7 @@ class ChannelsActivity : AppCompatActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             finish()
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
             return true
         }
         return super.onKeyDown(keyCode, event)
@@ -215,6 +228,36 @@ class ChannelsActivity : AppCompatActivity() {
             } finally {
                 progress.visibility = View.GONE
             }
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        val density = resources.displayMetrics.density
+        return (dp * density).toInt().coerceAtLeast(0)
+    }
+
+    private class SpacingDecoration(
+        private val spacingPx: Int,
+        private val edgeSpacingPx: Int
+    ) : RecyclerView.ItemDecoration() {
+        override fun getItemOffsets(
+            outRect: android.graphics.Rect,
+            view: View,
+            parent: RecyclerView,
+            state: RecyclerView.State
+        ) {
+            val pos = parent.getChildAdapterPosition(view)
+            if (pos == RecyclerView.NO_POSITION) return
+
+            val lm = parent.layoutManager
+            val spanCount = (lm as? GridLayoutManager)?.spanCount ?: 1
+            val col = if (spanCount <= 0) 0 else pos % spanCount
+
+            val half = spacingPx / 2
+            outRect.left = if (col == 0) edgeSpacingPx else half
+            outRect.right = if (col == spanCount - 1) edgeSpacingPx else half
+            outRect.top = if (pos < spanCount) edgeSpacingPx else half
+            outRect.bottom = edgeSpacingPx
         }
     }
 

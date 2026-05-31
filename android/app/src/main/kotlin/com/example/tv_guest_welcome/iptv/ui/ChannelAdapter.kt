@@ -51,27 +51,53 @@ class ChannelAdapter(
         val radius = 16f * density
         val stroke = (2f * density).toInt().coerceAtLeast(1)
 
-        val focusedBg = holder.focusedBg ?: GradientDrawable().apply {
+        val focusedBg = holder.focusedBg ?: GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(Color.parseColor("#24344B"), Color.parseColor("#152033"))
+        ).apply {
             cornerRadius = radius
-            setColor(Color.parseColor("#22FFFFFF"))
             setStroke(stroke, Color.parseColor("#FBBF24"))
         }.also { holder.focusedBg = it }
 
-        val normalBg = holder.normalBg ?: GradientDrawable().apply {
+        val normalBg = holder.normalBg ?: GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(Color.parseColor("#111827"), Color.parseColor("#0B1020"))
+        ).apply {
             cornerRadius = radius
-            setColor(Color.parseColor("#00000000"))
-            setStroke(1, Color.parseColor("#00000000"))
+            setStroke((1f * density).toInt().coerceAtLeast(1), Color.parseColor("#22304A"))
         }.also { holder.normalBg = it }
+
+        val baseElevation = 2f * density
+        val focusedElevation = 10f * density
 
         fun applyFocusState(hasFocus: Boolean) {
             holder.root.background = if (hasFocus) focusedBg else normalBg
-            holder.root.animate().scaleX(if (hasFocus) 1.06f else 1f).scaleY(if (hasFocus) 1.06f else 1f).setDuration(90).start()
+            holder.root.elevation = if (hasFocus) focusedElevation else baseElevation
+            holder.root.animate()
+                .scaleX(if (hasFocus) 1.08f else 1f)
+                .scaleY(if (hasFocus) 1.08f else 1f)
+                .setDuration(110)
+                .start()
         }
 
         holder.root.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
             applyFocusState(hasFocus)
         }
         applyFocusState(holder.root.isFocused)
+
+        if (!holder.didEnterAnim) {
+            holder.didEnterAnim = true
+            val dy = 10f * density
+            holder.root.animate().cancel()
+            holder.root.alpha = 0f
+            holder.root.translationY = dy
+            holder.root.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(180)
+                .setStartDelay(((position % 12) * 12).toLong())
+                .start()
+        }
     }
 
     override fun getItemCount(): Int = items.size
@@ -82,5 +108,6 @@ class ChannelAdapter(
         val name: TextView = view.findViewById(R.id.channel_name)
         var focusedBg: GradientDrawable? = null
         var normalBg: GradientDrawable? = null
+        var didEnterAnim: Boolean = false
     }
 }

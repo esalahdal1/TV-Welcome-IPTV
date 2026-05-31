@@ -140,6 +140,7 @@ class PlayerActivity : AppCompatActivity() {
                 intent.putExtra(ChannelsActivity.EXTRA_FOCUS_INDEX, currentIndex)
                 intent.putExtra(ChannelsActivity.EXTRA_RETURN_TO_PLAYER, true)
                 startActivity(intent)
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
