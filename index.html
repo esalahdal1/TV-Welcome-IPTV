@@ -1374,9 +1374,22 @@
             return k === 'ArrowRight' || kc === 22 || kc === 39;
         }
 
+        function setDpadDownBlocked(blocked) {
+            try {
+                if (window.TVIP && typeof window.TVIP.setDpadDownBlocked === 'function') {
+                    window.TVIP.setDpadDownBlocked(!!blocked);
+                }
+            } catch (e) {}
+        }
+
+        function updateDpadDownBlockedState() {
+            setDpadDownBlocked(!!(guestMenuOpen || requestTypeOpen));
+        }
+
         function openGuestMenu() {
             if (!guestMenu) return;
             guestMenuOpen = true;
+            updateDpadDownBlockedState();
             guestMenu.style.display = 'block';
             guestMenu.style.opacity = '0';
             guestMenu.animate(
@@ -1389,6 +1402,7 @@
         function closeGuestMenu() {
             if (!guestMenu) return;
             guestMenuOpen = false;
+            updateDpadDownBlockedState();
             guestMenu.style.display = 'none';
         }
 
@@ -1422,6 +1436,7 @@
         function openRequestTypeModal() {
             if (!guestRequestModal) return;
             requestTypeOpen = true;
+            updateDpadDownBlockedState();
             requestTypeFocused = 0;
             if (guestStatus) guestStatus.innerText = '';
             buildGuestOptions();
@@ -1431,6 +1446,7 @@
         function closeRequestTypeModal() {
             if (!guestRequestModal) return;
             requestTypeOpen = false;
+            updateDpadDownBlockedState();
             guestRequestModal.style.display = 'none';
         }
 
@@ -1490,6 +1506,8 @@
                 if (e.target === guestRequestModal) closeRequestTypeModal();
             });
         }
+
+        updateDpadDownBlockedState();
 
         document.addEventListener('keydown', function(event) {
             if (IS_ADMIN || IS_RECEPTION) return;

@@ -15,6 +15,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebSettings
+import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -31,6 +32,8 @@ class MainActivity : AppCompatActivity() {
     private var updateReceiver: BroadcastReceiver? = null
     private var roomNumber: String? = null
     private var attemptedWelcomeFallback: Boolean = false
+    @Volatile
+    private var dpadDownBlockedByWeb: Boolean = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         webView.clearCache(true)
         
         // منع فتح الروابط في متصفح خارجي
+        webView.addJavascriptInterface(IptvBridge(), "TVIP")
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri = request.url
@@ -193,12 +197,19 @@ class MainActivity : AppCompatActivity() {
             val isWelcomePage = host == "esalahdal1.github.io" && (
                 path.startsWith("/tv-welcome/") || path.startsWith("/tv-welcome-iptv/")
             )
-            if (isWelcomePage) {
+            if (isWelcomePage && !dpadDownBlockedByWeb) {
                 startActivity(Intent(this, QuickPlayActivity::class.java))
                 return true
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private inner class IptvBridge {
+        @JavascriptInterface
+        fun setDpadDownBlocked(blocked: Boolean) {
+            dpadDownBlockedByWeb = blocked
+        }
     }
 
     private fun buildWelcomeUrl(baseUrl: String): String {
