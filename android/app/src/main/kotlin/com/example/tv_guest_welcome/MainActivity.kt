@@ -29,6 +29,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private var updateDownloadId: Long? = null
     private var updateReceiver: BroadcastReceiver? = null
+    private var roomNumber: String? = null
+    private var attemptedWelcomeFallback: Boolean = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         Notifications.ensureScheduled(this)
 
         val prefs = getSharedPreferences("TV_PREFS", Context.MODE_PRIVATE)
-        val roomNumber = prefs.getString("room_number", null)
+        roomNumber = prefs.getString("room_number", null)
 
         if (roomNumber == null) {
             startActivity(Intent(this, SetupActivity::class.java))
@@ -121,11 +123,36 @@ class MainActivity : AppCompatActivity() {
                         or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)
             }
+
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: android.webkit.WebResourceResponse?
+            ) {
+                val status = errorResponse?.statusCode ?: 0
+                if (request?.isForMainFrame == true && status == 404) {
+                    val url = request.url?.toString().orEmpty()
+                    tryFallbackFromMissingPages(url)
+                }
+                super.onReceivedHttpError(view, request, errorResponse)
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                if (request?.isForMainFrame == true) {
+                    val url = request.url?.toString().orEmpty()
+                    tryFallbackFromMissingPages(url)
+                }
+                super.onReceivedError(view, request, error)
+            }
         }
 
         // الرابط النهائي - يتم تحديثه تلقائياً من GitHub Pages
         val baseUrl = "https://esalahdal1.github.io/TV-Welcome-IPTV/"
-        val finalUrl = "$baseUrl?room=$roomNumber"
+        val finalUrl = buildWelcomeUrl(baseUrl)
         
         webView.loadUrl(finalUrl)
         webView.isFocusableInTouchMode = true
@@ -172,6 +199,20 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun buildWelcomeUrl(baseUrl: String): String {
+        val room = roomNumber?.trim().orEmpty()
+        return if (room.isEmpty()) baseUrl else "$baseUrl?room=$room"
+    }
+
+    private fun tryFallbackFromMissingPages(loadedUrl: String) {
+        if (attemptedWelcomeFallback) return
+        if (!loadedUrl.contains("esalahdal1.github.io/TV-Welcome-IPTV", ignoreCase = true)) return
+        attemptedWelcomeFallback = true
+        val fallbackUrl = buildWelcomeUrl("https://esalahdal1.github.io/TV-Welcome/")
+        Toast.makeText(this, "تعذر فتح صفحة الترحيب الجديدة (GitHub Pages). تم التحويل للرابط الاحتياطي.", Toast.LENGTH_LONG).show()
+        webView.post { webView.loadUrl(fallbackUrl) }
     }
 
     override fun onBackPressed() {
