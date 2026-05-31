@@ -172,7 +172,11 @@ class ChannelsActivity : AppCompatActivity() {
         scope.launch {
             try {
                 val prefs = getSharedPreferences("IPTV_PREFS", Context.MODE_PRIVATE)
-                val bad = prefs.getStringSet("bad_urls", emptySet()).orEmpty()
+                val bad = if (IptvDefaults.FILTER_BAD_URLS) {
+                    prefs.getStringSet("bad_urls", emptySet()).orEmpty()
+                } else {
+                    emptySet()
+                }
 
                 if (horizontalBrowseMode) {
                     val channels = repository.getChannels(forceRefresh)

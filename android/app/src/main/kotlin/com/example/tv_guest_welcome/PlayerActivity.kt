@@ -17,6 +17,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.tv_guest_welcome.iptv.Channel
+import com.example.tv_guest_welcome.iptv.IptvDefaults
 import com.example.tv_guest_welcome.iptv.IptvRepository
 
 class PlayerActivity : AppCompatActivity() {
@@ -211,6 +212,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun filterKnownBadUrlsInPlace() {
+        if (!IptvDefaults.FILTER_BAD_URLS) return
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val bad = prefs.getStringSet(PREF_BAD_URLS, emptySet()).orEmpty()
         if (bad.isEmpty()) return

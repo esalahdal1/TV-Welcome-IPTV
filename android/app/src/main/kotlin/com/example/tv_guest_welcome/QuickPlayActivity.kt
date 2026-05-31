@@ -50,7 +50,11 @@ class QuickPlayActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                val bad = prefs.getStringSet("bad_urls", emptySet()).orEmpty()
+                val bad = if (IptvDefaults.FILTER_BAD_URLS) {
+                    prefs.getStringSet("bad_urls", emptySet()).orEmpty()
+                } else {
+                    emptySet()
+                }
                 val filtered = if (bad.isEmpty()) channels else channels.filterNot { bad.contains(it.streamUrl) }
                 if (filtered.isEmpty()) {
                     Toast.makeText(this@QuickPlayActivity, "لا توجد قنوات تعمل", Toast.LENGTH_LONG).show()
