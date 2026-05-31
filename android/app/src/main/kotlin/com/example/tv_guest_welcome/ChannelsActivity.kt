@@ -179,7 +179,9 @@ class ChannelsActivity : AppCompatActivity() {
                 }
 
                 if (horizontalBrowseMode) {
-                    val channels = repository.getChannels(forceRefresh)
+                    val channels = IptvRepository.getPlaybackQueue()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: repository.getChannels(forceRefresh)
                     val filteredChannels = if (bad.isEmpty()) channels else channels.filterNot { bad.contains(it.streamUrl) }
                     if (filteredChannels.isEmpty()) {
                         Toast.makeText(this@ChannelsActivity, "لا توجد قنوات", Toast.LENGTH_LONG).show()
