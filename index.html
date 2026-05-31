@@ -618,6 +618,173 @@
             min-height: 18px;
         }
 
+        .reception-root {
+            position: fixed;
+            inset: 0;
+            padding: 56px 72px 44px;
+            display: none;
+        }
+
+        .reception-card {
+            height: 100%;
+            padding: 22px 22px;
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 14px;
+        }
+
+        .reception-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .reception-title {
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .reception-tabs {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+
+        .tab-btn {
+            height: 44px;
+            padding: 0 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: rgba(251, 191, 36, 0.18);
+            border-color: rgba(251, 191, 36, 0.35);
+        }
+
+        .requests-table {
+            overflow: auto;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.16);
+        }
+
+        .req-row {
+            display: grid;
+            grid-template-columns: 1fr 160px 180px 160px 180px;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.10);
+        }
+
+        .req-row.head {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: rgba(10, 16, 32, 0.88);
+            backdrop-filter: blur(12px);
+        }
+
+        .req-cell {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .req-type { font-weight: 900; }
+        .req-room { font-weight: 900; color: rgba(234, 240, 255, 0.96); }
+        .req-date, .req-time { color: var(--muted); }
+
+        .guest-menu {
+            position: fixed;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(980px, 92vw);
+            z-index: 9998;
+            pointer-events: none;
+            display: none;
+        }
+
+        .guest-menu-inner {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .guest-card {
+            min-width: 240px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+            color: rgba(255,255,255,0.95);
+            font-size: 18px;
+            font-weight: 800;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .guest-card.is-focused {
+            border-color: rgba(251, 191, 36, 0.60);
+            background: rgba(251, 191, 36, 0.10);
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .guest-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+        }
+
+        .guest-modal-card {
+            width: min(820px, 92vw);
+            padding: 18px 18px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .guest-modal-title {
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .guest-options {
+            display: grid;
+            gap: 10px;
+        }
+
+        .guest-option {
+            padding: 14px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            font-weight: 800;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .guest-option.is-focused {
+            border-color: rgba(251, 191, 36, 0.60);
+            background: rgba(251, 191, 36, 0.12);
+        }
+
         .toast-host {
             position: fixed;
             top: 18px;
@@ -749,8 +916,49 @@
         </div>
     </div>
 
+    <div id="receptionRoot" class="reception-root">
+        <div class="reception-card panel">
+            <div class="reception-header">
+                <div class="reception-title">طلبات الاستقبال</div>
+                <div class="reception-tabs">
+                    <button id="tabPending" class="tab-btn active">الطلبات</button>
+                    <button id="tabDone" class="tab-btn">طلبات مكتملة</button>
+                </div>
+            </div>
+
+            <div id="receptionLogin">
+                <div class="admin-row">
+                    <input id="receptionPass" type="password" inputmode="numeric" placeholder="الرمز السري" />
+                    <button id="receptionLoginBtn" class="admin-btn">دخول</button>
+                </div>
+                <div id="receptionLoginErr" class="admin-err" style="display:none"></div>
+            </div>
+
+            <div id="receptionPanel" style="display:none">
+                <div id="requestsTable" class="requests-table"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="guestMenu" class="guest-menu">
+        <div class="guest-menu-inner">
+            <button id="guestRequestCard" class="guest-card is-focused">طلب</button>
+        </div>
+    </div>
+
+    <div id="guestRequestModal" class="guest-modal">
+        <div class="guest-modal-card panel">
+            <div class="guest-modal-title">اختر نوع الطلب</div>
+            <div id="guestOptions" class="guest-options"></div>
+            <div class="admin-actions">
+                <button id="guestCancel" class="admin-btn secondary">إلغاء</button>
+                <button id="guestSend" class="admin-btn">إرسال</button>
+            </div>
+            <div id="guestStatus" class="admin-status"></div>
+        </div>
+    </div>
+
     <script>
-        // إعدادات Supabase
         const params = new URLSearchParams(window.location.search);
         const SUPABASE_URL =
             params.get('sbUrl') ||
@@ -777,11 +985,21 @@
         const adminParam = normalizeDigits(adminParamRaw);
         const IS_ADMIN = adminParam === '1' || adminParam.toLowerCase() === 'true';
 
-        if (IS_ADMIN) {
+        const receptionParamRaw = (params.get('reception') || '').trim();
+        const receptionParam = normalizeDigits(receptionParamRaw);
+        const IS_RECEPTION = receptionParam === '1' || receptionParam.toLowerCase() === 'true';
+
+        if (IS_ADMIN || IS_RECEPTION) {
             const main = document.querySelector('.main-content');
             if (main) main.style.display = 'none';
-            const adminRoot = document.getElementById('adminRoot');
-            if (adminRoot) adminRoot.style.display = 'block';
+            if (IS_ADMIN) {
+                const adminRoot = document.getElementById('adminRoot');
+                if (adminRoot) adminRoot.style.display = 'block';
+            }
+            if (IS_RECEPTION) {
+                const receptionRoot = document.getElementById('receptionRoot');
+                if (receptionRoot) receptionRoot.style.display = 'block';
+            }
         }
 
         function applyStageScale() {
@@ -1101,18 +1319,234 @@
             setInterval(() => pollNotificationsOnce(), 20000);
         }
 
-        // مراقبة أزرار الريموت
+        const GUEST_REQUEST_TYPES = [
+            { key: 'cleaning', label: 'خدمة تنظيف الغرف' },
+            { key: 'early_checkout', label: 'خروج مبكر' }
+        ];
+
+        const guestMenu = document.getElementById('guestMenu');
+        const guestRequestCard = document.getElementById('guestRequestCard');
+        const guestRequestModal = document.getElementById('guestRequestModal');
+        const guestOptions = document.getElementById('guestOptions');
+        const guestCancel = document.getElementById('guestCancel');
+        const guestSend = document.getElementById('guestSend');
+        const guestStatus = document.getElementById('guestStatus');
+
+        let guestMenuOpen = false;
+        let guestCardFocused = 0;
+        let requestTypeOpen = false;
+        let requestTypeFocused = 0;
+
+        function isOkKey(e) {
+            const k = e.key;
+            const code = e.code;
+            const kc = e.keyCode || e.which || 0;
+            return k === 'Enter' || k === 'OK' || k === 'Select' || code === 'Enter' || kc === 23 || kc === 66;
+        }
+
+        function isBackKey(e) {
+            const k = e.key;
+            const kc = e.keyCode || e.which || 0;
+            return k === 'Backspace' || k === 'Escape' || kc === 4 || kc === 111;
+        }
+
+        function isUpKey(e) {
+            const k = e.key;
+            const kc = e.keyCode || e.which || 0;
+            return k === 'ArrowUp' || kc === 19 || kc === 38;
+        }
+
+        function isDownKey(e) {
+            const k = e.key;
+            const kc = e.keyCode || e.which || 0;
+            return k === 'ArrowDown' || kc === 20 || kc === 40;
+        }
+
+        function isLeftKey(e) {
+            const k = e.key;
+            const kc = e.keyCode || e.which || 0;
+            return k === 'ArrowLeft' || kc === 21 || kc === 37;
+        }
+
+        function isRightKey(e) {
+            const k = e.key;
+            const kc = e.keyCode || e.which || 0;
+            return k === 'ArrowRight' || kc === 22 || kc === 39;
+        }
+
+        function openGuestMenu() {
+            if (!guestMenu) return;
+            guestMenuOpen = true;
+            guestMenu.style.display = 'block';
+            guestMenu.style.opacity = '0';
+            guestMenu.animate(
+                [{ opacity: 0, transform: 'translateX(-50%) translateY(-10px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0px)' }],
+                { duration: 180, easing: 'ease-out', fill: 'forwards' }
+            );
+            updateGuestCardFocus();
+        }
+
+        function closeGuestMenu() {
+            if (!guestMenu) return;
+            guestMenuOpen = false;
+            guestMenu.style.display = 'none';
+        }
+
+        function updateGuestCardFocus() {
+            if (!guestRequestCard) return;
+            guestRequestCard.classList.toggle('is-focused', guestCardFocused === 0);
+        }
+
+        function buildGuestOptions() {
+            if (!guestOptions) return;
+            guestOptions.innerHTML = GUEST_REQUEST_TYPES.map((t, idx) => {
+                const focused = idx === requestTypeFocused ? 'is-focused' : '';
+                return `<button class="guest-option ${focused}" data-idx="${idx}" data-key="${t.key}">${t.label}</button>`;
+            }).join('');
+            guestOptions.querySelectorAll('button[data-idx]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    requestTypeFocused = Number(btn.getAttribute('data-idx') || '0') || 0;
+                    updateGuestOptionFocus();
+                    sendGuestRequest();
+                });
+            });
+        }
+
+        function updateGuestOptionFocus() {
+            if (!guestOptions) return;
+            guestOptions.querySelectorAll('.guest-option').forEach(el => el.classList.remove('is-focused'));
+            const active = guestOptions.querySelector(`.guest-option[data-idx="${requestTypeFocused}"]`);
+            if (active) active.classList.add('is-focused');
+        }
+
+        function openRequestTypeModal() {
+            if (!guestRequestModal) return;
+            requestTypeOpen = true;
+            requestTypeFocused = 0;
+            if (guestStatus) guestStatus.innerText = '';
+            buildGuestOptions();
+            guestRequestModal.style.display = 'flex';
+        }
+
+        function closeRequestTypeModal() {
+            if (!guestRequestModal) return;
+            requestTypeOpen = false;
+            guestRequestModal.style.display = 'none';
+        }
+
+        function formatDateYmd(iso) {
+            try {
+                const d = new Date(iso);
+                return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
+            } catch (e) {
+                return String(iso || '').slice(0, 10);
+            }
+        }
+
+        function formatTime12(iso) {
+            try {
+                const d = new Date(iso);
+                return new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Riyadh' }).format(d);
+            } catch (e) {
+                return '';
+            }
+        }
+
+        async function sendGuestRequest() {
+            if (!guestStatus) return;
+            const room = getRoomParam();
+            if (!room) {
+                guestStatus.innerText = 'رقم الغرفة غير معروف';
+                return;
+            }
+            if (!_supabase) {
+                guestStatus.innerText = 'Supabase غير متوفر';
+                return;
+            }
+            const t = GUEST_REQUEST_TYPES[requestTypeFocused];
+            if (!t) return;
+            guestStatus.innerText = 'جارٍ الإرسال...';
+            const payload = { room_number: room, request_type: t.label };
+            const { error } = await _supabase.from('tv_requests').insert([payload]);
+            if (error) {
+                guestStatus.innerText = error.message || 'فشل الإرسال';
+                return;
+            }
+            guestStatus.innerText = 'تم الإرسال';
+            enqueueToast('تم إرسال الطلب');
+            setTimeout(() => {
+                closeRequestTypeModal();
+                closeGuestMenu();
+            }, 450);
+        }
+
+        if (guestRequestCard) {
+            guestRequestCard.addEventListener('click', () => openRequestTypeModal());
+        }
+        if (guestCancel) guestCancel.addEventListener('click', () => closeRequestTypeModal());
+        if (guestSend) guestSend.addEventListener('click', () => sendGuestRequest());
+        if (guestRequestModal) {
+            guestRequestModal.addEventListener('click', (e) => {
+                if (e.target === guestRequestModal) closeRequestTypeModal();
+            });
+        }
+
         document.addEventListener('keydown', function(event) {
-            if (IS_ADMIN) return;
-            const keyCode = event.keyCode || event.which || 0;
-            if (
-                event.key === 'Enter' ||
-                event.key === 'OK' ||
-                event.key === 'Select' ||
-                event.code === 'Enter' ||
-                keyCode === 23 ||
-                keyCode === 66
-            ) {
+            if (IS_ADMIN || IS_RECEPTION) return;
+
+            if (requestTypeOpen) {
+                if (isBackKey(event)) {
+                    event.preventDefault();
+                    closeRequestTypeModal();
+                    return;
+                }
+                if (isUpKey(event)) {
+                    event.preventDefault();
+                    requestTypeFocused = Math.max(0, requestTypeFocused - 1);
+                    updateGuestOptionFocus();
+                    return;
+                }
+                if (isDownKey(event)) {
+                    event.preventDefault();
+                    requestTypeFocused = Math.min(GUEST_REQUEST_TYPES.length - 1, requestTypeFocused + 1);
+                    updateGuestOptionFocus();
+                    return;
+                }
+                if (isOkKey(event)) {
+                    event.preventDefault();
+                    sendGuestRequest();
+                    return;
+                }
+                return;
+            }
+
+            if (guestMenuOpen) {
+                if (isBackKey(event)) {
+                    event.preventDefault();
+                    closeGuestMenu();
+                    return;
+                }
+                if (isLeftKey(event) || isRightKey(event)) {
+                    event.preventDefault();
+                    guestCardFocused = 0;
+                    updateGuestCardFocus();
+                    return;
+                }
+                if (isOkKey(event)) {
+                    event.preventDefault();
+                    openRequestTypeModal();
+                    return;
+                }
+            }
+
+            if (isUpKey(event)) {
+                event.preventDefault();
+                if (guestMenuOpen) closeGuestMenu();
+                else openGuestMenu();
+                return;
+            }
+
+            if (isOkKey(event)) {
                 window.location.href = 'https://www.masaken-rc.com.sa';
             }
         });
@@ -1247,6 +1681,171 @@
         }
 
         if (IS_ADMIN) initAdmin();
+
+        function setTabActive(active) {
+            const a = document.getElementById('tabPending');
+            const b = document.getElementById('tabDone');
+            if (a) a.classList.toggle('active', active === 'pending');
+            if (b) b.classList.toggle('active', active === 'done');
+        }
+
+        let receptionTab = 'pending';
+
+        async function loadRequests() {
+            const table = document.getElementById('requestsTable');
+            if (!table) return;
+            if (!_supabase) {
+                table.innerHTML = '<div class="req-row"><div class="req-cell req-type">خطأ</div><div class="req-cell">—</div><div class="req-cell">—</div><div class="req-cell">Supabase غير متوفر</div><div class="req-cell">—</div></div>';
+                return;
+            }
+
+            table.innerHTML = `
+                <div class="req-row head">
+                    <div class="req-cell req-type">طلب</div>
+                    <div class="req-cell req-room">رقم الشقة</div>
+                    <div class="req-cell req-date">تاريخ الطلب</div>
+                    <div class="req-cell req-time">الساعة</div>
+                    <div class="req-cell"> </div>
+                </div>
+                <div class="req-row"><div class="req-cell req-type">تحميل...</div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div></div>
+            `;
+
+            const { data, error } = await _supabase
+                .from('tv_requests')
+                .select('id,room_number,request_type,created_at,completed_at,status')
+                .eq('status', receptionTab)
+                .order('created_at', { ascending: false })
+                .limit(80);
+
+            if (error) {
+                table.innerHTML = `
+                    <div class="req-row head">
+                        <div class="req-cell req-type">طلب</div>
+                        <div class="req-cell req-room">رقم الشقة</div>
+                        <div class="req-cell req-date">تاريخ الطلب</div>
+                        <div class="req-cell req-time">الساعة</div>
+                        <div class="req-cell"> </div>
+                    </div>
+                    <div class="req-row"><div class="req-cell req-type">خطأ</div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell">${error.message || 'فشل التحميل'}</div><div class="req-cell"></div></div>
+                `;
+                return;
+            }
+
+            const rows = Array.isArray(data) ? data : [];
+            if (rows.length === 0) {
+                table.innerHTML = `
+                    <div class="req-row head">
+                        <div class="req-cell req-type">طلب</div>
+                        <div class="req-cell req-room">رقم الشقة</div>
+                        <div class="req-cell req-date">تاريخ الطلب</div>
+                        <div class="req-cell req-time">الساعة</div>
+                        <div class="req-cell"> </div>
+                    </div>
+                    <div class="req-row"><div class="req-cell req-type">لا يوجد</div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div></div>
+                `;
+                return;
+            }
+
+            table.innerHTML = `
+                <div class="req-row head">
+                    <div class="req-cell req-type">طلب</div>
+                    <div class="req-cell req-room">رقم الشقة</div>
+                    <div class="req-cell req-date">تاريخ الطلب</div>
+                    <div class="req-cell req-time">الساعة</div>
+                    <div class="req-cell"> </div>
+                </div>
+                ${rows.map(r => {
+                    const id = String(r.id || '').trim();
+                    const type = String(r.request_type || '').trim() || '—';
+                    const room = String(r.room_number || '').trim() || '—';
+                    const created = String(r.created_at || '').trim();
+                    const date = created ? formatDateYmd(created) : '—';
+                    const time = created ? formatTime12(created) : '—';
+                    const btn = (receptionTab === 'pending')
+                        ? `<button class="admin-btn" data-done="${id}">تم الاكمال</button>`
+                        : `<div class="req-cell"></div>`;
+                    return `
+                        <div class="req-row">
+                            <div class="req-cell req-type">${type}</div>
+                            <div class="req-cell req-room">${room}</div>
+                            <div class="req-cell req-date">${date}</div>
+                            <div class="req-cell req-time">${time}</div>
+                            <div class="req-cell">${btn}</div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+
+            table.querySelectorAll('button[data-done]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = (btn.getAttribute('data-done') || '').trim();
+                    if (!id) return;
+                    btn.disabled = true;
+                    const { error: e2 } = await _supabase
+                        .from('tv_requests')
+                        .update({ status: 'done', completed_at: new Date().toISOString() })
+                        .eq('id', id);
+                    if (e2) {
+                        btn.disabled = false;
+                        return;
+                    }
+                    loadRequests();
+                });
+            });
+        }
+
+        function initReception() {
+            const pass = document.getElementById('receptionPass');
+            const loginBtn = document.getElementById('receptionLoginBtn');
+            const loginErr = document.getElementById('receptionLoginErr');
+            const loginBox = document.getElementById('receptionLogin');
+            const panel = document.getElementById('receptionPanel');
+            const tabPending = document.getElementById('tabPending');
+            const tabDone = document.getElementById('tabDone');
+
+            const stored = sessionStorage.getItem('RECEPTION_OK');
+            const setLoggedIn = () => {
+                if (loginBox) loginBox.style.display = 'none';
+                if (panel) panel.style.display = 'block';
+                setTabActive(receptionTab);
+                loadRequests();
+                setInterval(loadRequests, 12000);
+            };
+
+            if (stored === '1') setLoggedIn();
+
+            const tryLogin = () => {
+                const code = normalizeDigits((pass?.value || '').trim());
+                if (code !== '1234') {
+                    if (loginErr) {
+                        loginErr.style.display = 'block';
+                        loginErr.innerText = 'رمز غير صحيح';
+                    }
+                    return;
+                }
+                sessionStorage.setItem('RECEPTION_OK', '1');
+                if (loginErr) loginErr.style.display = 'none';
+                setLoggedIn();
+            };
+
+            if (loginBtn) loginBtn.addEventListener('click', tryLogin);
+            if (pass) pass.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') tryLogin();
+            });
+
+            if (tabPending) tabPending.addEventListener('click', () => {
+                receptionTab = 'pending';
+                setTabActive(receptionTab);
+                loadRequests();
+            });
+            if (tabDone) tabDone.addEventListener('click', () => {
+                receptionTab = 'done';
+                setTabActive(receptionTab);
+                loadRequests();
+            });
+        }
+
+        if (IS_RECEPTION) initReception();
     </script>
 </body>
 </html>
