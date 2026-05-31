@@ -20,8 +20,6 @@ class ChannelAdapter(
     private val onClick: (Channel, Int) -> Unit
 ) : RecyclerView.Adapter<ChannelAdapter.VH>() {
     private val items = ArrayList<Channel>()
-    private val focusBgTagKey: Int = View.generateViewId()
-    private val normalBgTagKey: Int = View.generateViewId()
 
     fun submit(channels: List<Channel>) {
         items.clear()
@@ -53,17 +51,17 @@ class ChannelAdapter(
         val radius = 16f * density
         val stroke = (2f * density).toInt().coerceAtLeast(1)
 
-        val focusedBg = (holder.root.getTag(focusBgTagKey) as? GradientDrawable) ?: GradientDrawable().apply {
+        val focusedBg = holder.focusedBg ?: GradientDrawable().apply {
             cornerRadius = radius
             setColor(Color.parseColor("#22FFFFFF"))
             setStroke(stroke, Color.parseColor("#FBBF24"))
-        }.also { holder.root.setTag(focusBgTagKey, it) }
+        }.also { holder.focusedBg = it }
 
-        val normalBg = (holder.root.getTag(normalBgTagKey) as? GradientDrawable) ?: GradientDrawable().apply {
+        val normalBg = holder.normalBg ?: GradientDrawable().apply {
             cornerRadius = radius
             setColor(Color.parseColor("#00000000"))
             setStroke(1, Color.parseColor("#00000000"))
-        }.also { holder.root.setTag(normalBgTagKey, it) }
+        }.also { holder.normalBg = it }
 
         fun applyFocusState(hasFocus: Boolean) {
             holder.root.background = if (hasFocus) focusedBg else normalBg
@@ -82,5 +80,7 @@ class ChannelAdapter(
         val root: View = view
         val logo: ImageView = view.findViewById(R.id.channel_logo)
         val name: TextView = view.findViewById(R.id.channel_name)
+        var focusedBg: GradientDrawable? = null
+        var normalBg: GradientDrawable? = null
     }
 }
