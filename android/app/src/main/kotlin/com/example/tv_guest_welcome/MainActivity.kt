@@ -124,10 +124,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         // الرابط النهائي - يتم تحديثه تلقائياً من GitHub Pages
-        val baseUrl = "https://esalahdal1.github.io/TV-Welcome/" 
+        val baseUrl = "https://esalahdal1.github.io/TV-Welcome-IPTV/"
         val finalUrl = "$baseUrl?room=$roomNumber"
         
         webView.loadUrl(finalUrl)
+        webView.isFocusableInTouchMode = true
+        webView.requestFocus()
 
         // تمت إزالة إغلاق التطبيق عند اللمس لدعم وضع الـ Kiosk
         // webView.setOnTouchListener { _, _ ->
@@ -161,7 +163,9 @@ class MainActivity : AppCompatActivity() {
             val host = uri?.host?.lowercase().orEmpty()
             val path = uri?.path?.lowercase().orEmpty()
 
-            val isWelcomePage = host == "esalahdal1.github.io" && path.startsWith("/tv-welcome/")
+            val isWelcomePage = host == "esalahdal1.github.io" && (
+                path.startsWith("/tv-welcome/") || path.startsWith("/tv-welcome-iptv/")
+            )
             if (isWelcomePage) {
                 startActivity(Intent(this, QuickPlayActivity::class.java))
                 return true
@@ -197,7 +201,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val apkUrl = "https://github.com/esalahdal1/TV-Welcome/releases/latest/download/app-debug.apk"
+        val apkUrl = "https://github.com/esalahdal1/TV-Welcome-IPTV/releases/latest/download/app-debug.apk"
         val fileName = "masaken-hotel.apk"
 
         val request = DownloadManager.Request(Uri.parse(apkUrl))
