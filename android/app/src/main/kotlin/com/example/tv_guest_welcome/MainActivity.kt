@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.net.Uri
 import android.os.Build
@@ -22,6 +23,7 @@ import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
 import android.content.ActivityNotFoundException
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
@@ -86,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         webView.keepScreenOn = true
         val updateButton = findViewById<Button>(R.id.update_button)
         updateButton.setOnClickListener { downloadAndInstallUpdate() }
+        maybePromptSetAsHomeOnce()
         
         // إعدادات الـ WebView لضمان السرعة والتحديث اللحظي
         val settings = webView.settings
@@ -193,6 +196,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK && event.repeatCount >= 12) {
+            openHomeSettings()
+            return true
+        }
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             val currentUrl = webView.url?.trim().orEmpty()
             val uri = runCatching { Uri.parse(currentUrl) }.getOrNull()
@@ -382,6 +389,53 @@ class MainActivity : AppCompatActivity() {
         }
 
         Toast.makeText(this, "جارٍ تنزيل التحديث...", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun maybePromptSetAsHomeOnce() {
+        val prefs = getSharedPreferences("TV_PREFS", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("asked_set_home_once", false)) return
+        prefs.edit().putBoolean("asked_set_home_once", true).apply()
+        if (isDefaultHomeApp()) return
+
+        AlertDialog.Builder(this)
+            .setTitle("تعيين كلانشر")
+            .setMessage("لتشغيل التطبيق كواجهة رئيسية، اختر تعيين. للرجوع لللانشر الأصلي اضغط مطوّلًا زر الرجوع لفتح إعدادات اللانشر.")
+            .setPositiveButton("تعيين") { _, _ -> openHomeSettings() }
+            .setNegativeButton("لاحقاً", null)
+            .show()
+    }
+
+    private fun isDefaultHomeApp(): Boolean {
+        val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val resolved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.resolveActivity(
+                homeIntent,
+                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong())
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        }
+        val pkg = resolved?.activityInfo?.packageName
+        return pkg == packageName
+    }
+
+    private fun openHomeSettings() {
+        val candidates = listOf(
+            Intent("android.settings.HOME_SETTINGS"),
+            Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+
+        val opened = candidates.any { intent ->
+            runCatching {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            }.isSuccess
+        }
+        if (!opened) {
+            Toast.makeText(this, "تعذر فتح الإعدادات", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun installApk(apkFile: File) {
