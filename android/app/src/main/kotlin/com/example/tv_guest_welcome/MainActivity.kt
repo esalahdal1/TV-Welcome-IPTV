@@ -21,6 +21,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
+import android.content.ActivityNotFoundException
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
@@ -227,19 +228,39 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val pkg = candidates.firstOrNull { getTvLaunchIntentForPackage(it) != null }
-        if (pkg == null) {
+        val launched = candidates.any { tryLaunchTvAppPackage(it) }
+        if (!launched) {
             Toast.makeText(this, "التطبيق غير مثبت", Toast.LENGTH_LONG).show()
             return
         }
+    }
 
-        val launch = getTvLaunchIntentForPackage(pkg)
-        if (launch == null) {
-            Toast.makeText(this, "تعذر فتح التطبيق", Toast.LENGTH_LONG).show()
-            return
+    private fun tryLaunchTvAppPackage(packageName: String): Boolean {
+        val leanback = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+            .setPackage(packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        try {
+            startActivity(leanback)
+            return true
+        } catch (_: ActivityNotFoundException) {
+        } catch (_: SecurityException) {
         }
 
-        runCatching { startActivity(launch) }
+        val launcher = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .setPackage(packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        return try {
+            startActivity(launcher)
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        } catch (_: SecurityException) {
+            false
+        }
     }
 
     private fun getTvLaunchIntentForPackage(packageName: String): Intent? {
