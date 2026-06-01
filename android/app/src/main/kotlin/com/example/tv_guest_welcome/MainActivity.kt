@@ -228,11 +228,16 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val launched = candidates.any { tryLaunchTvAppPackage(it) }
-        if (!launched) {
-            Toast.makeText(this, "التطبيق غير مثبت", Toast.LENGTH_LONG).show()
-            return
+        for (pkg in candidates) {
+            val launch = getTvLaunchIntentForPackage(pkg)
+            if (launch != null) {
+                val ok = runCatching { startActivity(launch) }.isSuccess
+                if (ok) return
+            }
+            if (tryLaunchTvAppPackage(pkg)) return
         }
+
+        Toast.makeText(this, "التطبيق غير مثبت", Toast.LENGTH_LONG).show()
     }
 
     private fun tryLaunchTvAppPackage(packageName: String): Boolean {
