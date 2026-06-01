@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private var attemptedWelcomeFallback: Boolean = false
     @Volatile
     private var dpadDownBlockedByWeb: Boolean = false
+    private var backDownAtUptimeMs: Long = 0L
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -196,9 +198,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK && event.repeatCount >= 12) {
-            openHomeSettings()
-            return true
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                backDownAtUptimeMs = SystemClock.uptimeMillis()
+            } else if (event.action == KeyEvent.ACTION_UP) {
+                val heldMs = SystemClock.uptimeMillis() - backDownAtUptimeMs
+                if (heldMs >= 900) {
+                    openHomeSettings()
+                    return true
+                }
+            }
         }
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             val currentUrl = webView.url?.trim().orEmpty()
