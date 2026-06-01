@@ -741,6 +741,81 @@
             transform: translateY(-2px) scale(1.02);
         }
 
+        .apps-menu {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: min(420px, 42vw);
+            z-index: 9997;
+            display: none;
+            padding: 22px 18px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(16px);
+            border-left: 1px solid rgba(255,255,255,0.12);
+            box-shadow: -24px 0 80px rgba(0,0,0,0.45);
+        }
+
+        .apps-title {
+            font-size: 18px;
+            font-weight: 900;
+            color: rgba(255,255,255,0.92);
+            margin-bottom: 14px;
+        }
+
+        .apps-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .app-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.94);
+            cursor: pointer;
+            outline: none;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .app-item.is-focused {
+            border-color: rgba(251, 191, 36, 0.60);
+            background: rgba(251, 191, 36, 0.12);
+            transform: translateX(-2px) scale(1.02);
+        }
+
+        .app-logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            font-weight: 1000;
+            color: #fff;
+            flex: 0 0 auto;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+        }
+
+        .app-logo.netflix { background: rgba(229, 9, 20, 0.92); }
+        .app-logo.shahid { background: rgba(18, 184, 134, 0.92); }
+        .app-logo.appletv { background: rgba(28, 28, 30, 0.92); border: 1px solid rgba(255,255,255,0.18); }
+        .app-logo.youtube { background: rgba(255, 0, 0, 0.92); }
+        .app-logo.prime { background: rgba(0, 168, 225, 0.92); }
+
+        .apps-hint {
+            margin-top: 14px;
+            color: rgba(255,255,255,0.60);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
         .guest-modal {
             position: fixed;
             inset: 0;
@@ -944,6 +1019,12 @@
         <div class="guest-menu-inner">
             <button id="guestRequestCard" class="guest-card is-focused">طلب</button>
         </div>
+    </div>
+
+    <div id="appsMenu" class="apps-menu">
+        <div class="apps-title">تطبيقات الترفيه</div>
+        <div id="appsList" class="apps-list"></div>
+        <div class="apps-hint">يمين: فتح القائمة • أعلى/أسفل: تنقل • OK: فتح التطبيق • رجوع/يسار: إغلاق</div>
     </div>
 
     <div id="guestRequestModal" class="guest-modal">
@@ -1331,11 +1412,23 @@
         const guestCancel = document.getElementById('guestCancel');
         const guestSend = document.getElementById('guestSend');
         const guestStatus = document.getElementById('guestStatus');
+        const appsMenu = document.getElementById('appsMenu');
+        const appsList = document.getElementById('appsList');
 
         let guestMenuOpen = false;
         let guestCardFocused = 0;
         let requestTypeOpen = false;
         let requestTypeFocused = 0;
+        let appsMenuOpen = false;
+        let appsFocused = 0;
+
+        const ENTERTAINMENT_APPS = [
+            { id: 'netflix', name: 'نتفلكس', logo: 'N', cls: 'netflix' },
+            { id: 'shahid', name: 'شاهد', logo: 'S', cls: 'shahid' },
+            { id: 'appletv', name: 'ابل تي في', logo: '', cls: 'appletv' },
+            { id: 'youtube', name: 'يوتيوب', logo: '▶', cls: 'youtube' },
+            { id: 'prime', name: 'برايم فيديو', logo: 'P', cls: 'prime' }
+        ];
 
         function isOkKey(e) {
             const k = e.key;
@@ -1383,7 +1476,64 @@
         }
 
         function updateDpadDownBlockedState() {
-            setDpadDownBlocked(!!(guestMenuOpen || requestTypeOpen));
+            setDpadDownBlocked(!!(guestMenuOpen || requestTypeOpen || appsMenuOpen));
+        }
+
+        function buildAppsList() {
+            if (!appsList) return;
+            appsList.innerHTML = ENTERTAINMENT_APPS.map((a, idx) => {
+                const focused = idx === appsFocused ? 'is-focused' : '';
+                return `
+                    <button class="app-item ${focused}" data-idx="${idx}" data-id="${a.id}">
+                        <span class="app-logo ${a.cls}">${a.logo}</span>
+                        <span class="app-name">${a.name}</span>
+                    </button>
+                `;
+            }).join('');
+            appsList.querySelectorAll('button[data-idx]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = Number(btn.getAttribute('data-idx') || '0') || 0;
+                    appsFocused = Math.max(0, Math.min(ENTERTAINMENT_APPS.length - 1, idx));
+                    updateAppsFocus();
+                    launchFocusedApp();
+                });
+            });
+        }
+
+        function updateAppsFocus() {
+            if (!appsList) return;
+            appsList.querySelectorAll('.app-item').forEach(el => el.classList.remove('is-focused'));
+            const active = appsList.querySelector(`.app-item[data-idx="${appsFocused}"]`);
+            if (active) active.classList.add('is-focused');
+        }
+
+        function openAppsMenu() {
+            if (!appsMenu) return;
+            appsMenuOpen = true;
+            appsFocused = 0;
+            buildAppsList();
+            updateAppsFocus();
+            updateDpadDownBlockedState();
+            appsMenu.style.display = 'block';
+            appsMenu.style.opacity = '0';
+            appsMenu.animate(
+                [{ opacity: 0, transform: 'translateX(18px)' }, { opacity: 1, transform: 'translateX(0px)' }],
+                { duration: 170, easing: 'ease-out', fill: 'forwards' }
+            );
+        }
+
+        function closeAppsMenu() {
+            if (!appsMenu) return;
+            appsMenuOpen = false;
+            updateDpadDownBlockedState();
+            appsMenu.style.display = 'none';
+        }
+
+        function launchFocusedApp() {
+            const a = ENTERTAINMENT_APPS[appsFocused];
+            if (!a) return;
+            closeAppsMenu();
+            window.location.href = `tvip://launch?id=${encodeURIComponent(a.id)}`;
         }
 
         function openGuestMenu() {
@@ -1512,6 +1662,32 @@
         document.addEventListener('keydown', function(event) {
             if (IS_ADMIN || IS_RECEPTION) return;
 
+            if (appsMenuOpen) {
+                if (isBackKey(event) || isLeftKey(event)) {
+                    event.preventDefault();
+                    closeAppsMenu();
+                    return;
+                }
+                if (isUpKey(event)) {
+                    event.preventDefault();
+                    appsFocused = Math.max(0, appsFocused - 1);
+                    updateAppsFocus();
+                    return;
+                }
+                if (isDownKey(event)) {
+                    event.preventDefault();
+                    appsFocused = Math.min(ENTERTAINMENT_APPS.length - 1, appsFocused + 1);
+                    updateAppsFocus();
+                    return;
+                }
+                if (isOkKey(event)) {
+                    event.preventDefault();
+                    launchFocusedApp();
+                    return;
+                }
+                return;
+            }
+
             if (requestTypeOpen) {
                 if (isBackKey(event)) {
                     event.preventDefault();
@@ -1561,6 +1737,12 @@
                 event.preventDefault();
                 if (guestMenuOpen) closeGuestMenu();
                 else openGuestMenu();
+                return;
+            }
+
+            if (isRightKey(event)) {
+                event.preventDefault();
+                if (!guestMenuOpen && !requestTypeOpen) openAppsMenu();
                 return;
             }
 
