@@ -22,7 +22,19 @@ import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.BaseAdapter
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.TextView
+import kotlin.math.roundToInt
 import java.io.File
 import android.os.PowerManager
 
@@ -34,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private var attemptedWelcomeFallback: Boolean = false
     @Volatile
     private var dpadDownBlockedByWeb: Boolean = false
+    private var appsDialog: AlertDialog? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,7 +201,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+        if (event.action == KeyEvent.ACTION_DOWN && (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)) {
             val currentUrl = webView.url?.trim().orEmpty()
             val uri = runCatching { Uri.parse(currentUrl) }.getOrNull()
             val host = uri?.host?.lowercase().orEmpty()
@@ -198,11 +211,155 @@ class MainActivity : AppCompatActivity() {
                 path.startsWith("/tv-welcome/") || path.startsWith("/tv-welcome-iptv/")
             )
             if (isWelcomePage && !dpadDownBlockedByWeb) {
-                startActivity(Intent(this, QuickPlayActivity::class.java))
-                return true
+                if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    startActivity(Intent(this, QuickPlayActivity::class.java))
+                    return true
+                }
+                if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    showEntertainmentApps()
+                    return true
+                }
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun showEntertainmentApps() {
+        if (appsDialog?.isShowing == true) return
+        val items = buildEntertainmentApps()
+        if (items.isEmpty()) {
+            Toast.makeText(this, "لا توجد تطبيقات ترفيه مثبتة", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val listView = ListView(this)
+        listView.divider = ColorDrawable(Color.parseColor("#22304A"))
+        listView.dividerHeight = dpToPx(1)
+        listView.isVerticalScrollBarEnabled = false
+        listView.setBackgroundColor(Color.parseColor("#99000000"))
+        listView.setPadding(dpToPx(12), dpToPx(20), dpToPx(12), dpToPx(20))
+
+        val adapter = AppsAdapter(items)
+        listView.adapter = adapter
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val item = items.getOrNull(position) ?: return@setOnItemClickListener
+            val launch = packageManager.getLaunchIntentForPackage(item.packageName)
+            if (launch == null) {
+                Toast.makeText(this, "التطبيق غير متاح", Toast.LENGTH_LONG).show()
+                return@setOnItemClickListener
+            }
+            runCatching { startActivity(launch) }
+            appsDialog?.dismiss()
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(listView)
+            .create()
+
+        dialog.setOnDismissListener { appsDialog = null }
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.show()
+        dialog.window?.setLayout(dpToPx(420), ViewGroup.LayoutParams.MATCH_PARENT)
+        dialog.window?.setGravity(Gravity.END)
+
+        listView.post {
+            listView.requestFocus()
+            listView.setSelection(0)
+            listView.getChildAt(0)?.requestFocus()
+        }
+
+        appsDialog = dialog
+    }
+
+    private data class AppItem(
+        val name: String,
+        val packageName: String,
+        val icon: Drawable
+    )
+
+    private data class AppCandidate(
+        val name: String,
+        val packages: List<String>
+    )
+
+    private fun buildEntertainmentApps(): List<AppItem> {
+        val candidates = listOf(
+            AppCandidate("نتفلكس", listOf("com.netflix.ninja", "com.netflix.mediaclient")),
+            AppCandidate("شاهد", listOf("net.mbc.shahid", "net.mbc.shahid.tv")),
+            AppCandidate("ابل تي في", listOf("com.apple.atve.androidtv.appletv", "com.apple.atve.androidtv")),
+            AppCandidate("يوتيوب", listOf("com.google.android.youtube.tv", "com.google.android.youtube")),
+            AppCandidate("برايم فيديو", listOf("com.amazon.amazonvideo.livingroom", "com.amazon.avod.thirdpartyclient"))
+        )
+
+        val out = ArrayList<AppItem>()
+        for (c in candidates) {
+            val pkg = c.packages.firstOrNull { p -> packageManager.getLaunchIntentForPackage(p) != null } ?: continue
+            val icon = runCatching { packageManager.getApplicationIcon(pkg) }.getOrNull() ?: continue
+            out.add(AppItem(name = c.name, packageName = pkg, icon = icon))
+        }
+        return out
+    }
+
+    private inner class AppsAdapter(
+        private val items: List<AppItem>
+    ) : BaseAdapter() {
+        override fun getCount(): Int = items.size
+        override fun getItem(position: Int): Any = items[position]
+        override fun getItemId(position: Int): Long = position.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val row = convertView as? LinearLayout ?: LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = ListView.LayoutParams(ListView.LayoutParams.MATCH_PARENT, dpToPx(72))
+                setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10))
+                isFocusable = true
+                isFocusableInTouchMode = true
+                val iconView = ImageView(context).apply {
+                    id = View.generateViewId()
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(42), dpToPx(42)).apply {
+                        marginEnd = dpToPx(12)
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                }
+                val textView = TextView(context).apply {
+                    id = View.generateViewId()
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                    setTextColor(Color.parseColor("#EAF0FF"))
+                    textSize = 18f
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+                addView(iconView)
+                addView(textView)
+                background = makeRowBg(false)
+                setOnFocusChangeListener { v, hasFocus ->
+                    v.background = makeRowBg(hasFocus)
+                    v.animate().scaleX(if (hasFocus) 1.04f else 1f).scaleY(if (hasFocus) 1.04f else 1f).setDuration(90).start()
+                }
+            }
+
+            val item = items[position]
+            val icon = row.getChildAt(0) as ImageView
+            val text = row.getChildAt(1) as TextView
+            icon.setImageDrawable(item.icon)
+            text.text = item.name
+            return row
+        }
+
+        private fun makeRowBg(focused: Boolean): Drawable {
+            val bg = android.graphics.drawable.GradientDrawable()
+            bg.cornerRadius = dpToPx(16).toFloat()
+            bg.setColor(Color.parseColor(if (focused) "#22FBBF24" else "#1AFFFFFF"))
+            bg.setStroke(dpToPx(1), Color.parseColor(if (focused) "#FBBF24" else "#22304A"))
+            return bg
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
     }
 
     private inner class IptvBridge {
