@@ -215,7 +215,7 @@ class MainActivity : AppCompatActivity() {
 
         val candidates = when (id) {
             "netflix" -> listOf("com.netflix.ninja", "com.netflix.mediaclient")
-            "shahid" -> listOf("net.mbc.shahid", "net.mbc.shahid.tv")
+            "shahid" -> listOf("net.mbc.shahidTV", "net.mbc.shahid", "net.mbc.shahid.tv")
             "appletv" -> listOf("com.apple.atve.androidtv.appletv", "com.apple.atve.androidtv")
             "youtube" -> listOf("com.google.android.youtube.tv", "com.google.android.youtube")
             "prime" -> listOf("com.amazon.amazonvideo.livingroom", "com.amazon.avod.thirdpartyclient")
@@ -227,19 +227,46 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val pkg = candidates.firstOrNull { packageManager.getLaunchIntentForPackage(it) != null }
+        val pkg = candidates.firstOrNull { getTvLaunchIntentForPackage(it) != null }
         if (pkg == null) {
             Toast.makeText(this, "التطبيق غير مثبت", Toast.LENGTH_LONG).show()
             return
         }
 
-        val launch = packageManager.getLaunchIntentForPackage(pkg)
+        val launch = getTvLaunchIntentForPackage(pkg)
         if (launch == null) {
             Toast.makeText(this, "تعذر فتح التطبيق", Toast.LENGTH_LONG).show()
             return
         }
 
         runCatching { startActivity(launch) }
+    }
+
+    private fun getTvLaunchIntentForPackage(packageName: String): Intent? {
+        val pm = packageManager
+        val main = Intent(Intent.ACTION_MAIN).setPackage(packageName)
+
+        val leanback = Intent(main).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+        val leanbackActivities = pm.queryIntentActivities(leanback, 0)
+        val leanbackActivity = leanbackActivities.firstOrNull()?.activityInfo
+        if (leanbackActivity != null) {
+            return Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+                .setClassName(leanbackActivity.packageName, leanbackActivity.name)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        val launcher = Intent(main).addCategory(Intent.CATEGORY_LAUNCHER)
+        val launcherActivities = pm.queryIntentActivities(launcher, 0)
+        val launcherActivity = launcherActivities.firstOrNull()?.activityInfo
+        if (launcherActivity != null) {
+            return Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .setClassName(launcherActivity.packageName, launcherActivity.name)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        return null
     }
 
     private inner class IptvBridge {
