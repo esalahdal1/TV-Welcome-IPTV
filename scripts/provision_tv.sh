@@ -80,7 +80,14 @@ provision_one() {
     adb -s "$target" shell cmd role add-role-holder android.app.role.HOME "$PKG_APP" >/dev/null 2>&1 || true
   fi
 
-  echo "-> تطبيق الإعدادات وتشغيل الشاشة تلقائياً..."
+  local friendly_name="Masaken Lobby"
+  if [[ "$mode" == "room" && -n "$room" ]]; then
+    friendly_name="Masaken Room ${room}"
+  fi
+  adb -s "$target" shell settings put global device_name "$friendly_name" >/dev/null 2>&1 || true
+  adb -s "$target" shell settings put secure bluetooth_name "$friendly_name" >/dev/null 2>&1 || true
+
+  echo "-> تطبيق الإعدادات وتشغيل الشاشة تلقائياً ($friendly_name)..."
   local cmd=(adb -s "$target" shell am start -n "${PKG_APP}/.SetupActivity" --es extra_mode "$mode" --ez extra_auto_save true)
   if [[ "$mode" == "room" ]]; then
     if [[ -z "$room" ]]; then

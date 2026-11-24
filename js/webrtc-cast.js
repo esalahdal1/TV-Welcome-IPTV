@@ -90,12 +90,17 @@
         channelKey: null,
         activeSenderId: null,
         pendingIce: [],
+        disconnectTimer: null,
         callbacks: {}
     };
 
     function cleanupReceiverPeer() {
         receiver.activeSenderId = null;
         receiver.pendingIce = [];
+        if (receiver.disconnectTimer) {
+            global.clearTimeout(receiver.disconnectTimer);
+            receiver.disconnectTimer = null;
+        }
         if (receiver.pc) {
             try { receiver.pc.ontrack = null; } catch (e) {}
             try { receiver.pc.onicecandidate = null; } catch (e2) {}
@@ -116,6 +121,7 @@
 
     async function handleReceiverOffer(payload) {
         if (!payload || !payload.sdp || !payload.senderId) return;
+        if (typeof global.RTCPeerConnection !== 'function') return;
         cleanupReceiverPeer();
 
         receiver.activeSenderId = payload.senderId;
@@ -144,7 +150,26 @@
 
         pc.oniceconnectionstatechange = function () {
             var st = pc.iceConnectionState;
-            if (st === 'disconnected' || st === 'failed' || st === 'closed') {
+            if (st === 'connected' || st === 'completed') {
+                if (receiver.disconnectTimer) {
+                    global.clearTimeout(receiver.disconnectTimer);
+                    receiver.disconnectTimer = null;
+                }
+                return;
+            }
+            if (st === 'disconnected') {
+                if (!receiver.disconnectTimer) {
+                    receiver.disconnectTimer = global.setTimeout(function () {
+                        receiver.disconnectTimer = null;
+                        if (receiver.pc && receiver.pc.iceConnectionState === 'disconnected') {
+                            cleanupReceiverPeer();
+                            if (typeof receiver.callbacks.onStop === 'function') receiver.callbacks.onStop();
+                        }
+                    }, 4000);
+                }
+                return;
+            }
+            if (st === 'failed' || st === 'closed') {
                 cleanupReceiverPeer();
                 if (typeof receiver.callbacks.onStop === 'function') receiver.callbacks.onStop();
             }
@@ -174,7 +199,6 @@
 
     async function startReceiver(room, pin, callbacks) {
         receiver.callbacks = callbacks || {};
-        if (typeof global.RTCPeerConnection !== 'function') return;
 
         var key = makeChannelName(room, pin);
         if (receiver.channelKey === key && receiver.bridge) return;
@@ -184,6 +208,19 @@
 
         receiver.bridge = await createSignalingBridge(key, function (p) {
             if (!p || p.from === 'tv') return;
+
+            if (p.type === 'media-start' && p.media) {
+                if (typeof receiver.callbacks.onMediaStart === 'function') receiver.callbacks.onMediaStart(p.media);
+                return;
+            }
+            if (p.type === 'media-control') {
+                if (typeof receiver.callbacks.onMediaControl === 'function') receiver.callbacks.onMediaControl(p.action, p.media);
+                return;
+            }
+            if (p.type === 'media-stop') {
+                if (typeof receiver.callbacks.onMediaStop === 'function') receiver.callbacks.onMediaStop();
+                return;
+            }
 
             if (p.kind === 'offer') {
                 handleReceiverOffer(p);
@@ -226,6 +263,7 @@
         stream: null,
         senderId: null,
         pendingIce: [],
+        disconnectTimer: null,
         callbacks: {}
     };
 
@@ -239,6 +277,10 @@
     }
 
     function stopSender(notifyRemote) {
+        if (sender.disconnectTimer) {
+            global.clearTimeout(sender.disconnectTimer);
+            sender.disconnectTimer = null;
+        }
         if (notifyRemote && sender.bridge && sender.senderId) {
             try {
                 sender.bridge.send({ kind: 'stop', from: 'laptop', senderId: sender.senderId });
@@ -316,8 +358,19 @@
         pc.oniceconnectionstatechange = function () {
             var st = pc.iceConnectionState;
             if (st === 'connected' || st === 'completed') {
+                if (sender.disconnectTimer) {
+                    global.clearTimeout(sender.disconnectTimer);
+                    sender.disconnectTimer = null;
+                }
                 if (typeof sender.callbacks.onState === 'function') sender.callbacks.onState('connected');
-            } else if (st === 'failed' || st === 'closed' || st === 'disconnected') {
+            } else if (st === 'disconnected') {
+                if (!sender.disconnectTimer) {
+                    sender.disconnectTimer = global.setTimeout(function () {
+                        sender.disconnectTimer = null;
+                        if (sender.pc && sender.pc.iceConnectionState === 'disconnected') stopSender(false);
+                    }, 4000);
+                }
+            } else if (st === 'failed' || st === 'closed') {
                 stopSender(false);
             }
         };

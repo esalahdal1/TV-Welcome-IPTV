@@ -54,6 +54,7 @@
         IS_LOBBY: modeParam === 'lobby' || lobbyFlag === '1' || lobbyFlag === 'true',
         ROOM: roomParam || null,
         PIN_PARAM: pinParam || null,
+        PUBLIC_URL: (params.get('publicUrl') || '').replace(/\/+$/, '') || null,
         ADMIN_PIN: '1234',
         HOTEL_DEFAULTS: {
             wifiName: 'Masaken_Guest',
@@ -106,7 +107,9 @@
             }
         },
         buildGuestMobileUrl: function (room, pin) {
-            var base = global.location.origin + global.location.pathname;
+            var base = TVApp.config.PUBLIC_URL
+                ? (TVApp.config.PUBLIC_URL.replace(/\/+$/, '') + '/')
+                : (global.location.origin + global.location.pathname);
             var q = new URLSearchParams();
             q.set('guest', '1');
             q.set('room', room || '101');

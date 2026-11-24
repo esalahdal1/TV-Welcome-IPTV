@@ -1,19 +1,19 @@
-const CACHE_NAME = 'tvip-masaken-v6';
+const CACHE_NAME = 'tvip-masaken-v10';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './css/app.css?v=31',
+  './css/app.css?v=35',
   './3%20small.png',
-  './js/config.js?v=31',
-  './js/i18n.js?v=31',
-  './js/supabase-client.js?v=31',
-  './js/webrtc-cast.js?v=31',
-  './js/widgets.js?v=31',
-  './js/portal.js?v=31',
-  './js/mobile-portal.js?v=31',
-  './js/lobby.js?v=31',
-  './js/staff.js?v=31',
-  './js/main.js?v=31'
+  './js/config.js?v=35',
+  './js/i18n.js?v=35',
+  './js/supabase-client.js?v=35',
+  './js/webrtc-cast.js?v=35',
+  './js/widgets.js?v=35',
+  './js/portal.js?v=35',
+  './js/mobile-portal.js?v=35',
+  './js/lobby.js?v=35',
+  './js/staff.js?v=35',
+  './js/main.js?v=35'
 ];
 
 self.addEventListener('install', (event) => {

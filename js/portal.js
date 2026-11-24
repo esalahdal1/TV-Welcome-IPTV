@@ -9,11 +9,20 @@
     var escapeHtml = utils.escapeHtml;
 
     var DOCK_IDS = ['tv', 'apps', 'services', 'cast', 'guide', 'lang'];
-    var CAST_TABS = ['webrtc', 'airplay', 'chromecast', 'hdmi'];
+    var CAST_TABS = ['webrtc', 'media', 'airplay', 'chromecast', 'hdmi'];
+    var CAST_TAB_ICONS = {
+        webrtc: 'fa-wifi',
+        media: 'fa-photo-video',
+        airplay: 'fa-mobile-alt',
+        chromecast: 'fa-tv',
+        hdmi: 'fa-plug'
+    };
 
     var state = {
         activeOverlay: null, // null | 'apps' | 'services' | 'cast' | 'guide'
         webrtcStreaming: false,
+        castMode: null, // null | 'webrtc' | 'media'
+        activeMedia: null,
         dockIndex: 0,
         appsIndex: 0,
         serviceIndex: 0,
@@ -37,7 +46,7 @@
             if (global.TVIP && typeof global.TVIP.setDpadDownBlocked === 'function') {
                 global.TVIP.setDpadDownBlocked(!!blocked);
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function fitGuestName() {
@@ -110,10 +119,10 @@
         if (cfg.IS_ADMIN || cfg.IS_RECEPTION || cfg.IS_GUEST_MOBILE || !db.isReady()) return;
         var lastKey = 'NOTIF_LAST_SEEN_' + (cfg.ROOM || 'ALL');
         var lastSeen = '';
-        try { lastSeen = (global.localStorage.getItem(lastKey) || '').trim(); } catch (e) {}
+        try { lastSeen = (global.localStorage.getItem(lastKey) || '').trim(); } catch (e) { }
 
         if (!lastSeen) {
-            try { global.localStorage.setItem(lastKey, new Date().toISOString()); } catch (e2) {}
+            try { global.localStorage.setItem(lastKey, new Date().toISOString()); } catch (e2) { }
             return;
         }
 
@@ -129,7 +138,7 @@
             if (msg) enqueueToast(msg);
         }
         if (maxTs !== lastSeen) {
-            try { global.localStorage.setItem(lastKey, maxTs); } catch (e3) {}
+            try { global.localStorage.setItem(lastKey, maxTs); } catch (e3) { }
         }
     }
 
@@ -167,7 +176,7 @@
         try {
             var cached = JSON.parse(global.localStorage.getItem('HOTEL_SETTINGS_CACHE') || 'null');
             if (cached) Object.assign(state.hotel, cached);
-        } catch (e) {}
+        } catch (e) { }
 
         var remote = await db.fetchHotelSettings();
         if (!remote) return;
@@ -176,8 +185,12 @@
         state.hotel.receptionExt = remote.reception_ext || state.hotel.receptionExt;
         state.hotel.breakfastHours = remote.breakfast_hours || state.hotel.breakfastHours;
         state.hotel.checkoutTime = remote.checkout_time || state.hotel.checkoutTime;
-        try { global.localStorage.setItem('HOTEL_SETTINGS_CACHE', JSON.stringify(state.hotel)); } catch (e2) {}
+        cfg.PUBLIC_URL = (remote.public_url && /^https?:\/\//i.test(remote.public_url))
+            ? String(remote.public_url).replace(/\/+$/, '')
+            : null;
+        try { global.localStorage.setItem('HOTEL_SETTINGS_CACHE', JSON.stringify(state.hotel)); } catch (e2) { }
         if (state.activeOverlay === 'guide') renderGuideModal();
+        if (state.activeOverlay === 'cast') renderCastModal();
     }
 
     async function fetchGuest() {
@@ -197,7 +210,7 @@
             try {
                 var cachedName = global.localStorage.getItem(cacheKey);
                 if (cachedName) state.guestNameValue = cachedName;
-            } catch (e) {}
+            } catch (e) { }
             state.hasLoadedGuest = true;
             renderGuestName();
             return;
@@ -207,11 +220,11 @@
         try {
             if (state.guestNameValue) global.localStorage.setItem(cacheKey, state.guestNameValue);
             else global.localStorage.removeItem(cacheKey);
-        } catch (e2) {}
+        } catch (e2) { }
 
         if (profile && profile.cast_pin && /^\d{4}$/.test(String(profile.cast_pin).trim())) {
             state.roomPin = String(profile.cast_pin).trim();
-            try { global.localStorage.setItem('ROOM_CAST_PIN_' + cfg.ROOM, state.roomPin); } catch (e3) {}
+            try { global.localStorage.setItem('ROOM_CAST_PIN_' + cfg.ROOM, state.roomPin); } catch (e3) { }
         } else if (profile === null) {
             db.syncTvPin(cfg.ROOM, state.roomPin);
         }
@@ -231,12 +244,119 @@
         }
     }
 
+    function clearCastStage() {
+        var stage = $('webrtcCastStage');
+        var img = $('tvCastImage');
+        var video = $('tvCastVideo');
+        state.webrtcStreaming = false;
+        state.castMode = null;
+        state.activeMedia = null;
+        if (img) {
+            img.style.display = 'none';
+            img.removeAttribute('src');
+        }
+        if (video) {
+            try { video.pause(); } catch (e) {}
+            video.srcObject = null;
+            video.removeAttribute('src');
+            video.style.display = 'block';
+            try { video.load(); } catch (e2) {}
+        }
+        if (stage) stage.style.display = 'none';
+        if (!state.activeOverlay) setDpadDownBlocked(false);
+    }
+
+    function applyMediaControlsToDom(media) {
+        var video = $('tvCastVideo');
+        if (!video || !media || state.castMode !== 'media' || media.kind !== 'video') return;
+        video.muted = !!media.muted;
+        if (media.paused) {
+            try { video.pause(); } catch (e) {}
+        } else {
+            var p = video.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(function () {
+                    video.muted = true;
+                    video.play().catch(function () {});
+                });
+            }
+        }
+    }
+
+    function showMediaCast(media) {
+        if (!media || !media.url) return;
+        if (state.castMode === 'webrtc' && TVApp.webrtcCast) {
+            TVApp.webrtcCast.stopBroadcastFromTv();
+        }
+        var stage = $('webrtcCastStage');
+        var img = $('tvCastImage');
+        var video = $('tvCastVideo');
+        var label = $('webrtcCastBannerText');
+        var stopBtn = $('webrtcStopTvBtn');
+        var d = i18n.dict();
+        if (label) label.innerText = d.castMediaActiveBanner + (media.filename ? (' • ' + media.filename) : '');
+        if (stopBtn) stopBtn.innerText = d.castWebrtcStopBtn;
+        closeAllOverlays();
+        state.webrtcStreaming = true;
+        state.castMode = 'media';
+        state.activeMedia = media;
+        setDpadDownBlocked(true);
+
+        if (media.kind === 'image') {
+            if (video) {
+                try { video.pause(); } catch (e) {}
+                video.srcObject = null;
+                video.removeAttribute('src');
+                video.style.display = 'none';
+            }
+            if (img) {
+                img.src = media.url;
+                img.style.display = 'block';
+            }
+        } else {
+            if (img) {
+                img.style.display = 'none';
+                img.removeAttribute('src');
+            }
+            if (video) {
+                video.srcObject = null;
+                video.style.display = 'block';
+                video.loop = true;
+                video.playsInline = true;
+                video.muted = !!media.muted;
+                if (video.getAttribute('src') !== media.url) {
+                    video.src = media.url;
+                    video.load();
+                }
+                applyMediaControlsToDom(media);
+            }
+        }
+        if (stage) stage.style.display = 'block';
+    }
+
+    function stopActiveCastFromTv() {
+        var roomTag = cfg.ROOM || '101';
+        if (state.castMode === 'media') {
+            clearCastStage();
+            if (db && db.controlRoomMedia) {
+                db.controlRoomMedia(roomTag, state.roomPin, 'stop').catch(function () {});
+            }
+            return;
+        }
+        if (TVApp.webrtcCast) {
+            TVApp.webrtcCast.stopBroadcastFromTv();
+        } else {
+            clearCastStage();
+        }
+    }
+
     function syncWebrtcReceiver() {
         if (!TVApp.webrtcCast || cfg.IS_ADMIN || cfg.IS_RECEPTION || cfg.IS_GUEST_MOBILE) return;
         var roomTag = cfg.ROOM || '101';
         TVApp.webrtcCast.startReceiver(roomTag, state.roomPin, {
             onStream: function (stream) {
                 var stage = $('webrtcCastStage');
+                var img = $('tvCastImage');
                 var video = $('tvCastVideo');
                 var label = $('webrtcCastBannerText');
                 var stopBtn = $('webrtcStopTvBtn');
@@ -244,22 +364,54 @@
                 if (stopBtn) stopBtn.innerText = i18n.dict().castWebrtcStopBtn;
                 closeAllOverlays();
                 state.webrtcStreaming = true;
+                state.castMode = 'webrtc';
+                state.activeMedia = null;
                 setDpadDownBlocked(true);
+                if (img) {
+                    img.style.display = 'none';
+                    img.removeAttribute('src');
+                }
                 if (video) {
+                    video.removeAttribute('src');
+                    video.loop = false;
+                    video.style.display = 'block';
+                    video.muted = false;
                     video.srcObject = stream;
-                    video.play().catch(function () {});
+                    var playPromise = video.play();
+                    if (playPromise && typeof playPromise.catch === 'function') {
+                        playPromise.catch(function () {
+                            video.muted = true;
+                            video.play().catch(function () { });
+                        });
+                    }
                 }
                 if (stage) stage.style.display = 'block';
             },
             onStop: function () {
-                var stage = $('webrtcCastStage');
-                var video = $('tvCastVideo');
-                state.webrtcStreaming = false;
-                if (video) video.srcObject = null;
-                if (stage) stage.style.display = 'none';
-                if (!state.activeOverlay) setDpadDownBlocked(false);
+                if (state.castMode !== 'media') clearCastStage();
+            },
+            onMediaStart: function (media) {
+                showMediaCast(media);
+            },
+            onMediaControl: function (_action, media) {
+                if (media) {
+                    state.activeMedia = media;
+                    applyMediaControlsToDom(media);
+                }
+            },
+            onMediaStop: function () {
+                if (state.castMode === 'media') clearCastStage();
             }
         });
+        if (db && db.getCurrentRoomMedia) {
+            db.getCurrentRoomMedia(roomTag, state.roomPin).then(function (res) {
+                if (res && res.active && res.media && state.castMode !== 'webrtc') {
+                    showMediaCast(res.media);
+                } else if (res && !res.active && state.castMode === 'media') {
+                    clearCastStage();
+                }
+            }).catch(function () {});
+        }
     }
 
     /* --- Dock & Static Translations --- */
@@ -524,7 +676,13 @@
             if (!global.TVIP) {
                 linkEl.style.display = 'inline-flex';
                 linkEl.href = mobileUrl;
+                linkEl.removeAttribute('tabindex');
                 linkEl.innerText = i18n.dict().castPreviewMobileBtn;
+            } else if (linkEl.id === 'castPreviewLink') {
+                linkEl.style.display = 'inline-flex';
+                linkEl.removeAttribute('href');
+                linkEl.setAttribute('tabindex', '-1');
+                linkEl.innerText = mobileUrl.replace(/^https?:\/\//i, '');
             } else {
                 linkEl.style.display = 'none';
             }
@@ -560,7 +718,7 @@
         if (tabsEl) {
             tabsEl.innerHTML = CAST_TABS.map(function (tabKey, idx) {
                 var active = idx === state.castTabIndex ? ' active is-focused' : '';
-                var icon = tabKey === 'webrtc' ? 'fa-wifi' : (tabKey === 'airplay' ? 'fa-mobile-alt' : (tabKey === 'chromecast' ? 'fa-tv' : 'fa-plug'));
+                var icon = CAST_TAB_ICONS[tabKey] || 'fa-laptop';
                 return '<button type="button" class="modal-tab' + active + '" data-cast-tab="' + idx + '">' +
                     '<i class="fas ' + icon + '"></i><span>' + escapeHtml(d.castTabs[tabKey]) + '</span></button>';
             }).join('');
@@ -585,16 +743,16 @@
         }
 
         if (webrtcStatusBox && webrtcStatusTxt) {
-            if (activeKey === 'webrtc') {
+            if (activeKey === 'webrtc' || activeKey === 'media') {
                 webrtcStatusBox.style.display = 'flex';
-                webrtcStatusTxt.innerText = d.castWebrtcWaiting;
+                webrtcStatusTxt.innerText = activeKey === 'media' ? d.castMediaWaiting : d.castWebrtcWaiting;
             } else {
                 webrtcStatusBox.style.display = 'none';
             }
         }
 
         if (launchBtn) {
-            if (activeKey === 'airplay' || activeKey === 'chromecast') {
+            if (activeKey === 'airplay') {
                 launchBtn.style.display = 'inline-flex';
                 launchBtn.innerHTML = '<i class="fas fa-external-link-alt"></i><span>' + escapeHtml(d.castLaunchReceiverBtn) + '</span>';
             } else {
@@ -767,7 +925,7 @@
             }
             if (isOkKey(e)) {
                 var activeTab = CAST_TABS[state.castTabIndex];
-                if (activeTab === 'airplay' || activeTab === 'chromecast') {
+                if (activeTab === 'airplay') {
                     e.preventDefault();
                     launchCastReceiver();
                     return true;
@@ -791,9 +949,7 @@
         if (launchBtn) launchBtn.addEventListener('click', launchCastReceiver);
 
         var stopTvBtn = $('webrtcStopTvBtn');
-        if (stopTvBtn) stopTvBtn.addEventListener('click', function () {
-            if (TVApp.webrtcCast) TVApp.webrtcCast.stopBroadcastFromTv();
-        });
+        if (stopTvBtn) stopTvBtn.addEventListener('click', stopActiveCastFromTv);
 
         document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
             btn.addEventListener('click', closeAllOverlays);
@@ -813,7 +969,7 @@
             if (state.webrtcStreaming) {
                 if (isBackKey(e) || isOkKey(e)) {
                     e.preventDefault();
-                    if (TVApp.webrtcCast) TVApp.webrtcCast.stopBroadcastFromTv();
+                    stopActiveCastFromTv();
                 }
                 return;
             }
@@ -868,7 +1024,7 @@
         },
         handleNativeBack: function () {
             if (state.webrtcStreaming) {
-                if (TVApp.webrtcCast) TVApp.webrtcCast.stopBroadcastFromTv();
+                stopActiveCastFromTv();
                 return true;
             }
             if (state.activeOverlay) {

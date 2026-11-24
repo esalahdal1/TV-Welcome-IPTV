@@ -8,16 +8,24 @@
     var utils = TVApp.utils;
     var escapeHtml = utils.escapeHtml;
 
+    var MAX_MEDIA_BYTES = 150 * 1024 * 1024;
+    var defaultCastTab = (TVApp.webrtcCast && TVApp.webrtcCast.isScreenCaptureSupported()) ? 'webrtc' : 'media';
+
     var state = {
         room: cfg.ROOM || '101',
         pin: cfg.PIN_PARAM || '',
         verified: false,
         guestName: null,
         hotel: Object.assign({}, cfg.HOTEL_DEFAULTS),
-        castTab: 'webrtc',
+        castTab: defaultCastTab,
         webrtcState: 'idle',
         webrtcMessage: '',
         webrtcIsError: false,
+        mediaUploading: false,
+        mediaProgress: 0,
+        mediaMessage: '',
+        mediaIsError: false,
+        activeMedia: null,
         pollTimer: null
     };
 
@@ -159,14 +167,14 @@
         if ($('mobCastTitle')) $('mobCastTitle').innerText = m.castTitle;
         var tabsEl = $('mobCastTabs');
         if (tabsEl) {
-            tabsEl.innerHTML = ['webrtc', 'airplay', 'chromecast', 'hdmi'].map(function (key) {
+            tabsEl.innerHTML = ['webrtc', 'media', 'airplay', 'chromecast', 'hdmi'].map(function (key) {
                 var active = key === state.castTab ? ' active' : '';
                 return '<button type="button" class="mob-tab' + active + '" data-mob-cast="' + key + '">' +
                     escapeHtml(d.castTabs[key]) + '</button>';
             }).join('');
             tabsEl.querySelectorAll('button[data-mob-cast]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    state.castTab = btn.getAttribute('data-mob-cast') || 'webrtc';
+                    state.castTab = btn.getAttribute('data-mob-cast') || defaultCastTab;
                     renderMobilePortal();
                 });
             });
@@ -190,6 +198,56 @@
                     escapeHtml(isActive ? m.webrtcStop : m.webrtcStart) + '</span>';
                 webrtcNote.className = state.webrtcIsError ? 'mob-webrtc-note is-error' : 'mob-webrtc-note';
                 webrtcNote.innerText = state.webrtcMessage || (state.webrtcState === 'connected' ? m.webrtcConnected : (state.webrtcState === 'connecting' ? m.webrtcConnecting : ''));
+            }
+        }
+
+        var mediaBox = $('mobMediaBox');
+        var mediaPickBtn = $('mobMediaPickBtn');
+        var mediaProgWrap = $('mobMediaProgressWrap');
+        var mediaProgBar = $('mobMediaProgressBar');
+        var mediaProgText = $('mobMediaProgressText');
+        var mediaControls = $('mobMediaControls');
+        var mediaName = $('mobMediaActiveName');
+        var mediaPP = $('mobMediaPlayPauseBtn');
+        var mediaMute = $('mobMediaMuteBtn');
+        var mediaStop = $('mobMediaStopBtn');
+        var mediaNote = $('mobMediaNote');
+        if (mediaBox) {
+            mediaBox.style.display = state.castTab === 'media' ? 'grid' : 'none';
+            if (mediaPickBtn) {
+                mediaPickBtn.disabled = !!state.mediaUploading;
+                mediaPickBtn.innerHTML = '<i class="fas fa-photo-video"></i><span>' +
+                    escapeHtml(state.activeMedia ? m.mediaPickAnother : m.mediaPick) + '</span>';
+            }
+            if (mediaProgWrap && mediaProgBar && mediaProgText) {
+                mediaProgWrap.style.display = state.mediaUploading ? 'flex' : 'none';
+                mediaProgBar.style.width = state.mediaProgress + '%';
+                mediaProgText.innerText = state.mediaProgress + '%';
+            }
+            if (mediaControls) {
+                var activeM = state.activeMedia;
+                mediaControls.style.display = activeM ? 'grid' : 'none';
+                if (activeM) {
+                    var isVid = activeM.kind === 'video';
+                    if (mediaName) mediaName.innerText = m.mediaPlaying + ' ' + (activeM.filename || '');
+                    if (mediaPP) {
+                        mediaPP.style.display = isVid ? 'inline-flex' : 'none';
+                        mediaPP.innerHTML = '<i class="fas ' + (activeM.paused ? 'fa-play' : 'fa-pause') + '"></i><span>' +
+                            escapeHtml(activeM.paused ? m.mediaPlay : m.mediaPause) + '</span>';
+                    }
+                    if (mediaMute) {
+                        mediaMute.style.display = isVid ? 'inline-flex' : 'none';
+                        mediaMute.innerHTML = '<i class="fas ' + (activeM.muted ? 'fa-volume-up' : 'fa-volume-mute') + '"></i><span>' +
+                            escapeHtml(activeM.muted ? m.mediaUnmute : m.mediaMute) + '</span>';
+                    }
+                    if (mediaStop) {
+                        mediaStop.innerHTML = '<i class="fas fa-stop"></i><span>' + escapeHtml(m.mediaStop) + '</span>';
+                    }
+                }
+            }
+            if (mediaNote) {
+                mediaNote.className = state.mediaIsError ? 'mob-webrtc-note is-error' : 'mob-webrtc-note';
+                mediaNote.innerText = state.mediaMessage || '';
             }
         }
 
@@ -276,6 +334,115 @@
         }
     }
 
+    function prepareImageForTv(file) {
+        if (!file || file.type === 'image/gif') {
+            return Promise.resolve({ blob: file, name: (file && file.name) || 'photo.gif' });
+        }
+        var urlApi = global.URL || global.webkitURL;
+        if (!urlApi || typeof urlApi.createObjectURL !== 'function') {
+            return Promise.resolve({ blob: file, name: file.name || 'photo.jpg' });
+        }
+        return new Promise(function (resolve) {
+            var objUrl = urlApi.createObjectURL(file);
+            var img = new global.Image();
+            img.onload = function () {
+                try {
+                    var maxDim = 1920;
+                    var w = img.naturalWidth || img.width || 1280;
+                    var h = img.naturalHeight || img.height || 720;
+                    var scale = Math.min(1, maxDim / Math.max(w, h));
+                    var tw = Math.max(1, Math.round(w * scale));
+                    var th = Math.max(1, Math.round(h * scale));
+                    var canvas = global.document.createElement('canvas');
+                    canvas.width = tw;
+                    canvas.height = th;
+                    var ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, tw, th);
+                    canvas.toBlob(function (blob) {
+                        urlApi.revokeObjectURL(objUrl);
+                        if (blob) {
+                            var baseName = String(file.name || 'photo').replace(/\.[^.]+$/, '');
+                            resolve({ blob: blob, name: baseName + '.jpg' });
+                        } else {
+                            resolve({ blob: file, name: file.name || 'photo.jpg' });
+                        }
+                    }, 'image/jpeg', 0.9);
+                } catch (e) {
+                    urlApi.revokeObjectURL(objUrl);
+                    resolve({ blob: file, name: file.name || 'photo.jpg' });
+                }
+            };
+            img.onerror = function () {
+                urlApi.revokeObjectURL(objUrl);
+                resolve({ blob: file, name: file.name || 'photo.jpg' });
+            };
+            img.src = objUrl;
+        });
+    }
+
+    async function refreshActiveMedia() {
+        if (!state.verified || !db.getCurrentRoomMedia) return;
+        var res = await db.getCurrentRoomMedia(state.room, state.pin);
+        if (res) {
+            state.activeMedia = res.active ? res.media : null;
+            renderMobilePortal();
+        }
+    }
+
+    async function handleMediaFileSelected(file) {
+        if (!file || state.mediaUploading) return;
+        var m = i18n.dict().mobile;
+        var isImage = /^image\//i.test(file.type) || /\.(heic|heif|jpg|jpeg|png|webp|gif)$/i.test(file.name || '');
+        var isVideo = /^video\//i.test(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name || '');
+        if (!isImage && !isVideo) {
+            state.mediaIsError = true;
+            state.mediaMessage = m.mediaUnsupported;
+            renderMobilePortal();
+            return;
+        }
+        if (file.size > MAX_MEDIA_BYTES) {
+            state.mediaIsError = true;
+            state.mediaMessage = m.mediaTooLarge;
+            renderMobilePortal();
+            return;
+        }
+
+        state.mediaUploading = true;
+        state.mediaProgress = 0;
+        state.mediaIsError = false;
+        state.mediaMessage = isImage ? m.mediaOptimizing : m.mediaUploading;
+        renderMobilePortal();
+
+        var uploadBlob = file;
+        var uploadName = file.name || (isImage ? 'photo.jpg' : 'video.mp4');
+        if (isImage) {
+            var prep = await prepareImageForTv(file);
+            uploadBlob = prep.blob;
+            uploadName = prep.name;
+            state.mediaMessage = i18n.dict().mobile.mediaUploading;
+            renderMobilePortal();
+        }
+
+        var res = await db.uploadRoomMedia(state.room, state.pin, uploadBlob, uploadName, function (pct) {
+            state.mediaProgress = pct;
+            var bar = $('mobMediaProgressBar');
+            var txt = $('mobMediaProgressText');
+            if (bar) bar.style.width = pct + '%';
+            if (txt) txt.innerText = pct + '%';
+        });
+
+        state.mediaUploading = false;
+        if (res && res.ok && res.media) {
+            state.activeMedia = res.media;
+            state.mediaIsError = false;
+            state.mediaMessage = '';
+        } else {
+            state.mediaIsError = true;
+            state.mediaMessage = (res && res.error && res.error.message) || i18n.dict().mobile.mediaUploadFailed;
+        }
+        renderMobilePortal();
+    }
+
     function fallbackCopy(txt) {
         var ta = global.document.createElement('textarea');
         ta.value = txt;
@@ -344,10 +511,53 @@
                 });
             }
 
+            var mediaPickBtn = $('mobMediaPickBtn');
+            var mediaInput = $('mobMediaInput');
+            if (mediaPickBtn && mediaInput) {
+                mediaPickBtn.addEventListener('click', function () {
+                    if (!state.mediaUploading) mediaInput.click();
+                });
+                mediaInput.addEventListener('change', function () {
+                    var f = mediaInput.files && mediaInput.files[0];
+                    mediaInput.value = '';
+                    if (f) handleMediaFileSelected(f);
+                });
+            }
+
+            var sendMediaAction = async function (action) {
+                if (!db.controlRoomMedia) return;
+                var res = await db.controlRoomMedia(state.room, state.pin, action);
+                if (res && res.ok) {
+                    state.activeMedia = res.active ? (res.media || state.activeMedia) : null;
+                    renderMobilePortal();
+                }
+            };
+            var mediaPP = $('mobMediaPlayPauseBtn');
+            var mediaMute = $('mobMediaMuteBtn');
+            var mediaStop = $('mobMediaStopBtn');
+            if (mediaPP) {
+                mediaPP.addEventListener('click', function () {
+                    if (!state.activeMedia) return;
+                    sendMediaAction(state.activeMedia.paused ? 'play' : 'pause');
+                });
+            }
+            if (mediaMute) {
+                mediaMute.addEventListener('click', function () {
+                    if (!state.activeMedia) return;
+                    sendMediaAction(state.activeMedia.muted ? 'unmute' : 'mute');
+                });
+            }
+            if (mediaStop) {
+                mediaStop.addEventListener('click', function () {
+                    sendMediaAction('stop');
+                });
+            }
+
             var submitPin = async function () {
                 var input = $('mobPinInput');
                 state.pin = utils.normalizeDigits((input && input.value || '').trim());
                 await verifyCurrentPin(true);
+                refreshActiveMedia();
             };
             var pinBtn = $('mobPinSubmit');
             var pinInput = $('mobPinInput');
@@ -357,16 +567,22 @@
             // Render immediately so mobile never hangs on a blank page while waiting on network
             renderMobilePortal();
             loadHotelInfo().then(renderMobilePortal);
-            await verifyCurrentPin(!!state.pin);
+            if (await verifyCurrentPin(!!state.pin)) {
+                refreshActiveMedia();
+            }
 
-            // Poll periodically: expires mobile portal & stops WebRTC automatically if PIN rotated
+            // Poll periodically: expires mobile portal & stops WebRTC/media automatically if PIN rotated
             state.pollTimer = global.setInterval(async function () {
                 if (state.verified) {
                     var ok = await verifyCurrentPin(true);
                     if (ok) {
                         loadHistory();
-                    } else if (TVApp.webrtcCast && (state.webrtcState === 'connecting' || state.webrtcState === 'connected')) {
-                        TVApp.webrtcCast.stopSender();
+                        refreshActiveMedia();
+                    } else {
+                        state.activeMedia = null;
+                        if (TVApp.webrtcCast && (state.webrtcState === 'connecting' || state.webrtcState === 'connected')) {
+                            TVApp.webrtcCast.stopSender();
+                        }
                     }
                 }
             }, 25000);

@@ -51,6 +51,7 @@
             castModalTitle: 'مشاركة شاشة الجوال واللابتوب',
             castTabs: {
                 webrtc: 'بث اللابتوب (WebRTC)',
+                media: 'صور وفيديو (أي جوال)',
                 airplay: 'iPhone / AirPlay',
                 chromecast: 'Android / Chrome',
                 hdmi: 'لابتوب HDMI (الأضمن)'
@@ -63,13 +64,20 @@
             castLaunchReceiverBtn: 'فتح مستقبل البث (AirPlay / Cast)',
             castReceiverPreviewToast: 'على شاشة التلفزيون (تطبيق الأندرويد)، يفتح هذا الزر تطبيق استقبال البث المثبت (مثل AirScreen / iMirror).',
             castWebrtcWaiting: 'التلفزيون جاهز لاستقبال شاشة اللابتوب عبر المتصفح (WebRTC).',
+            castMediaWaiting: 'التلفزيون جاهز لاستقبال الصور والفيديو من أي جوال بدون تثبيت تطبيقات.',
             castWebrtcActiveBanner: 'جارٍ عرض شاشة اللابتوب لاسلكياً • اضغط BACK لإيقاف العرض',
+            castMediaActiveBanner: 'جارٍ عرض وسائط الجوال • اضغط BACK للإيقاف',
             castWebrtcStopBtn: 'إيقاف البث (BACK)',
             castSteps: {
                 webrtc: [
                     'افتح الرابط الظاهر (أو امسح الـ QR Code) من متصفح Chrome أو Edge على اللابتوب.',
                     'في قسم «مشاركة الشاشة»، اضغط على زر «ابدأ مشاركة شاشة اللابتوب على التلفزيون».',
                     'اختر الشاشة أو النافذة المطلوبة — وستظهر هنا مباشرة لاسلكيًا حتى لو الواي فاي معزول!'
+                ],
+                media: [
+                    'امسح الـ QR Code بكاميرا جوالك (iPhone أو Honor أو Samsung أو أي جوال).',
+                    'من قسم «مشاركة الشاشة»، اختر تبويب «صور وفيديو (أي جوال)».',
+                    'اختر صورة أو فيديو من جوالك ليُعرض فوراً على الشاشة بدون أي تطبيق إضافي!'
                 ],
                 airplay: [
                     'تأكد من اتصالك بشبكة الواي فاي الخاصة بالفندق (أو اضغط زر فتح مستقبل البث أدناه).',
@@ -140,9 +148,22 @@
                 webrtcStop: 'إيقاف مشاركة الشاشة',
                 webrtcConnecting: 'جارٍ الربط بشاشة الغرفة...',
                 webrtcConnected: 'شاشتك معروضة الآن على تلفزيون الغرفة!',
-                webrtcUnsupported: 'مشاركة الشاشة عبر المتصفح متاحة من متصفح اللابتوب (Chrome/Edge عبر HTTPS أو localhost). لهواتف الآيفون والأندرويد استخدم تبويب AirPlay أو Chromecast.',
+                webrtcUnsupported: 'مشاركة شاشة سطح المكتب عبر المتصفح متاحة من اللابتوب (Chrome/Edge). لهواتف الآيفون وهونر والأندرويد استخدم تبويب «صور وفيديو (أي جوال)» أعلاه.',
                 webrtcCancelled: 'تم إلغاء اختيار الشاشة.',
-                webrtcFailed: 'تعذر بدء المشاركة. تأكد من فتح الغرفة على التلفزيون بنفس الـ PIN.'
+                webrtcFailed: 'تعذر بدء المشاركة. تأكد من فتح الغرفة على التلفزيون بنفس الـ PIN.',
+                mediaPick: 'اختر صورة أو فيديو للعرض على التلفزيون',
+                mediaPickAnother: 'عرض صورة أو فيديو آخر',
+                mediaOptimizing: 'جارٍ تجهيز الصورة للعرض...',
+                mediaUploading: 'جارٍ الإرسال إلى التلفزيون...',
+                mediaPlaying: 'يُعرض الآن على تلفزيون الغرفة:',
+                mediaPause: 'إيقاف مؤقت',
+                mediaPlay: 'تشغيل',
+                mediaMute: 'كتم الصوت',
+                mediaUnmute: 'تشغيل الصوت',
+                mediaStop: 'إيقاف العرض',
+                mediaTooLarge: 'حجم الملف يتجاوز الحد المسموح (150 ميجابايت).',
+                mediaUnsupported: 'يرجى اختيار صورة (JPG/PNG/HEIC) أو فيديو (MP4/MOV/WebM).',
+                mediaUploadFailed: 'تعذر إرسال الملف إلى السيرفر المحلي.'
             },
             closeBtn: 'إغلاق (BACK)',
             tvIptvPreviewToast: 'على شاشة التلفزيون (تطبيق الأندرويد)، يفتح هذا الاختصار بث القنوات المباشرة فورًا.'
@@ -194,6 +215,7 @@
             castModalTitle: 'Share Phone or Laptop Screen',
             castTabs: {
                 webrtc: 'Laptop Wireless (WebRTC)',
+                media: 'Photos & Video (Any Phone)',
                 airplay: 'iPhone / AirPlay',
                 chromecast: 'Android / Chrome',
                 hdmi: 'Laptop HDMI (Direct)'
@@ -206,13 +228,20 @@
             castLaunchReceiverBtn: 'Open Cast Receiver (AirPlay / Cast)',
             castReceiverPreviewToast: 'On the Android TV app, this launches the installed receiver app (e.g. AirScreen / iMirror).',
             castWebrtcWaiting: 'TV is ready to receive your laptop screen via browser (WebRTC).',
+            castMediaWaiting: 'TV is ready to display photos & videos directly from any phone browser.',
             castWebrtcActiveBanner: 'Wireless Laptop Screen Active • Press BACK to stop',
+            castMediaActiveBanner: 'Mobile Media Casting • Press BACK to stop',
             castWebrtcStopBtn: 'Stop Casting (BACK)',
             castSteps: {
                 webrtc: [
                     'Open this room portal URL (or scan the QR code) in Chrome or Edge on your laptop.',
                     'Under Screen Casting, click "Start Sharing Laptop Screen".',
                     'Choose your screen or window — it streams straight to the TV even on isolated hotel Wi-Fi!'
+                ],
+                media: [
+                    'Scan the QR code using your phone camera (iPhone, Honor, Samsung, or any phone).',
+                    'Select the "Photos & Video (Any Phone)" tab in Screen Casting.',
+                    'Pick any photo or video from your gallery to display it instantly on the TV!'
                 ],
                 airplay: [
                     'Connect your iPhone or iPad to the hotel Wi-Fi (or click Open Cast Receiver below).',
@@ -283,9 +312,22 @@
                 webrtcStop: 'Stop Screen Sharing',
                 webrtcConnecting: 'Connecting to room TV...',
                 webrtcConnected: 'Your laptop screen is now live on the room TV!',
-                webrtcUnsupported: 'Browser screen capture works from a laptop browser (Chrome/Edge over HTTPS or localhost). On iPhone/Android, please use the AirPlay or Chromecast tabs.',
+                webrtcUnsupported: 'Desktop screen capture works from a laptop browser (Chrome/Edge over HTTPS). On iPhone, Honor, or Android phones, use the "Photos & Video (Any Phone)" tab above.',
                 webrtcCancelled: 'Screen selection was cancelled.',
-                webrtcFailed: 'Could not connect. Make sure the room TV screen is open with the same PIN.'
+                webrtcFailed: 'Could not connect. Make sure the room TV screen is open with the same PIN.',
+                mediaPick: 'Choose Photo or Video for TV',
+                mediaPickAnother: 'Cast Another Photo or Video',
+                mediaOptimizing: 'Preparing photo for TV...',
+                mediaUploading: 'Sending to room TV...',
+                mediaPlaying: 'Now showing on room TV:',
+                mediaPause: 'Pause',
+                mediaPlay: 'Play',
+                mediaMute: 'Mute',
+                mediaUnmute: 'Unmute',
+                mediaStop: 'Stop Casting',
+                mediaTooLarge: 'File size exceeds the 150 MB limit.',
+                mediaUnsupported: 'Please pick an image (JPG/PNG/HEIC) or video (MP4/MOV/WebM).',
+                mediaUploadFailed: 'Could not upload file to local server.'
             },
             closeBtn: 'Close (BACK)',
             tvIptvPreviewToast: 'On the Android TV app, this launches Live IPTV channels immediately.'
