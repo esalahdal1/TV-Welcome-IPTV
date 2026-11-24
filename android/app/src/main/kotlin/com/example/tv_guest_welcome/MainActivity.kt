@@ -206,15 +206,32 @@ class MainActivity : AppCompatActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                backDownAtUptimeMs = SystemClock.uptimeMillis()
-            } else if (event.action == KeyEvent.ACTION_UP && backDownAtUptimeMs > 0L) {
-                val heldMs = SystemClock.uptimeMillis() - backDownAtUptimeMs
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (event.repeatCount == 0) {
+                    backDownAtUptimeMs = SystemClock.uptimeMillis()
+                }
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_UP) {
+                val heldMs = if (backDownAtUptimeMs > 0L) (SystemClock.uptimeMillis() - backDownAtUptimeMs) else 0L
                 backDownAtUptimeMs = 0L
                 if (heldMs >= 900L) {
                     showTechnicianMenu()
                     return true
                 }
+                if (dpadDownBlockedByWeb) {
+                    webView.evaluateJavascript(
+                        "if (window.TVApp && TVApp.portal && TVApp.portal.handleNativeBack) TVApp.portal.handleNativeBack();",
+                        null
+                    )
+                    return true
+                }
+                if (::webView.isInitialized && webView.canGoBack()) {
+                    webView.goBack()
+                    return true
+                }
+                // تجنّب الخروج العشوائي من واجهة الفندق عند ضغط BACK بالخطأ
+                return true
             }
         }
 

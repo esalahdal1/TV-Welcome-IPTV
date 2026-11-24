@@ -73,7 +73,7 @@
         host.style.opacity = '0';
         if (typeof host.animate === 'function') {
             host.animate(
-                [{ opacity: 0, transform: 'translateX(-50%) translateY(-6px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0px)' }],
+                [{ opacity: 0 }, { opacity: 1 }],
                 { duration: 180, easing: 'ease-out', fill: 'forwards' }
             );
         } else {
@@ -212,6 +212,8 @@
         if (profile && profile.cast_pin && /^\d{4}$/.test(String(profile.cast_pin).trim())) {
             state.roomPin = String(profile.cast_pin).trim();
             try { global.localStorage.setItem('ROOM_CAST_PIN_' + cfg.ROOM, state.roomPin); } catch (e3) {}
+        } else if (profile === null) {
+            db.syncTvPin(cfg.ROOM, state.roomPin);
         }
         if (!state.manualLangOverride && profile && (profile.preferred_lang === 'ar' || profile.preferred_lang === 'en')) {
             if (profile.preferred_lang !== i18n.getLang()) {
@@ -863,6 +865,17 @@
             global.setInterval(fetchHotelSettings, 120000);
             global.setTimeout(pollNotificationsOnce, 3000);
             global.setInterval(pollNotificationsOnce, 20000);
+        },
+        handleNativeBack: function () {
+            if (state.webrtcStreaming) {
+                if (TVApp.webrtcCast) TVApp.webrtcCast.stopBroadcastFromTv();
+                return true;
+            }
+            if (state.activeOverlay) {
+                closeAllOverlays();
+                return true;
+            }
+            return false;
         },
         enqueueToast: enqueueToast
     };

@@ -18,9 +18,74 @@
         return 'tvip-cast-' + String(room || '101').trim() + '-' + String(pin || '0000').trim();
     }
 
+    async function createSignalingBridge(channelKey, onPayload, onReady) {
+        var isLocal = TVApp.db && TVApp.db.ensureBackendReady ? await TVApp.db.ensureBackendReady() : false;
+        if (isLocal && TVApp.db.rtcSend && TVApp.db.rtcPoll) {
+            var active = true;
+            var lastSeq = 0;
+            var pollHandle = null;
+
+            var initRes = await TVApp.db.rtcPoll(channelKey, 0);
+            if (initRes && typeof initRes.lastSeq === 'number') {
+                lastSeq = initRes.lastSeq;
+            }
+
+            pollHandle = global.setInterval(async function () {
+                if (!active) return;
+                var res = await TVApp.db.rtcPoll(channelKey, lastSeq);
+                if (!active || !res || !Array.isArray(res.messages)) return;
+                if (typeof res.lastSeq === 'number' && res.lastSeq > lastSeq) {
+                    lastSeq = res.lastSeq;
+                }
+                for (var i = 0; i < res.messages.length; i++) {
+                    var item = res.messages[i];
+                    if (item && item.payload) onPayload(item.payload);
+                }
+            }, 650);
+
+            if (typeof onReady === 'function') {
+                global.setTimeout(function () { if (active) onReady('SUBSCRIBED'); }, 10);
+            }
+
+            return {
+                send: function (payload) {
+                    return TVApp.db.rtcSend(channelKey, payload);
+                },
+                close: function () {
+                    active = false;
+                    if (pollHandle) global.clearInterval(pollHandle);
+                    pollHandle = null;
+                }
+            };
+        }
+
+        var client = TVApp.db && TVApp.db.getRawClient ? TVApp.db.getRawClient() : null;
+        if (!client) return null;
+
+        var ch = client.channel(channelKey, { config: { broadcast: { self: false } } });
+        ch.on('broadcast', { event: 'rtc' }, function (msg) {
+            if (msg && msg.payload) onPayload(msg.payload);
+        });
+        ch.subscribe(function (status) {
+            if (typeof onReady === 'function') onReady(status);
+        });
+
+        return {
+            send: function (payload) {
+                return ch.send({ type: 'broadcast', event: 'rtc', payload: payload });
+            },
+            close: function () {
+                try {
+                    if (typeof client.removeChannel === 'function') client.removeChannel(ch);
+                    else if (typeof ch.unsubscribe === 'function') ch.unsubscribe();
+                } catch (e) {}
+            }
+        };
+    }
+
     /* --- TV Receiver Controller --- */
     var receiver = {
-        channel: null,
+        bridge: null,
         pc: null,
         channelKey: null,
         activeSenderId: null,
@@ -42,16 +107,9 @@
 
     function stopReceiver() {
         cleanupReceiverPeer();
-        var client = TVApp.db.getRawClient();
-        if (receiver.channel) {
-            try {
-                if (client && typeof client.removeChannel === 'function') {
-                    client.removeChannel(receiver.channel);
-                } else if (typeof receiver.channel.unsubscribe === 'function') {
-                    receiver.channel.unsubscribe();
-                }
-            } catch (e) {}
-            receiver.channel = null;
+        if (receiver.bridge) {
+            receiver.bridge.close();
+            receiver.bridge = null;
         }
         receiver.channelKey = null;
     }
@@ -75,16 +133,12 @@
         };
 
         pc.onicecandidate = function (event) {
-            if (!event.candidate || !receiver.channel) return;
-            receiver.channel.send({
-                type: 'broadcast',
-                event: 'rtc',
-                payload: {
-                    kind: 'ice',
-                    from: 'tv',
-                    senderId: receiver.activeSenderId,
-                    candidate: event.candidate
-                }
+            if (!event.candidate || !receiver.bridge) return;
+            receiver.bridge.send({
+                kind: 'ice',
+                from: 'tv',
+                senderId: receiver.activeSenderId,
+                candidate: event.candidate
             });
         };
 
@@ -104,16 +158,12 @@
             }
             var answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            if (receiver.channel) {
-                await receiver.channel.send({
-                    type: 'broadcast',
-                    event: 'rtc',
-                    payload: {
-                        kind: 'answer',
-                        from: 'tv',
-                        senderId: receiver.activeSenderId,
-                        sdp: answer
-                    }
+            if (receiver.bridge) {
+                await receiver.bridge.send({
+                    kind: 'answer',
+                    from: 'tv',
+                    senderId: receiver.activeSenderId,
+                    sdp: answer
                 });
             }
         } catch (err) {
@@ -122,24 +172,17 @@
         }
     }
 
-    function startReceiver(room, pin, callbacks) {
+    async function startReceiver(room, pin, callbacks) {
         receiver.callbacks = callbacks || {};
         if (typeof global.RTCPeerConnection !== 'function') return;
-        var client = TVApp.db.getRawClient();
-        if (!client) return;
 
         var key = makeChannelName(room, pin);
-        if (receiver.channelKey === key && receiver.channel) return;
+        if (receiver.channelKey === key && receiver.bridge) return;
 
         stopReceiver();
         receiver.channelKey = key;
 
-        var ch = client.channel(key, {
-            config: { broadcast: { self: false } }
-        });
-
-        ch.on('broadcast', { event: 'rtc' }, function (msg) {
-            var p = msg && msg.payload;
+        receiver.bridge = await createSignalingBridge(key, function (p) {
             if (!p || p.from === 'tv') return;
 
             if (p.kind === 'offer') {
@@ -158,25 +201,18 @@
                 cleanupReceiverPeer();
                 if (typeof receiver.callbacks.onStop === 'function') receiver.callbacks.onStop();
             }
-        });
-
-        ch.subscribe(function (status) {
+        }, function (status) {
             if (typeof receiver.callbacks.onChannelStatus === 'function') {
                 receiver.callbacks.onChannelStatus(status);
             }
         });
-        receiver.channel = ch;
     }
 
     function stopBroadcastFromTv() {
         var senderId = receiver.activeSenderId;
-        if (receiver.channel && senderId) {
+        if (receiver.bridge && senderId) {
             try {
-                receiver.channel.send({
-                    type: 'broadcast',
-                    event: 'rtc',
-                    payload: { kind: 'stop', from: 'tv', senderId: senderId }
-                });
+                receiver.bridge.send({ kind: 'stop', from: 'tv', senderId: senderId });
             } catch (e) {}
         }
         cleanupReceiverPeer();
@@ -185,7 +221,7 @@
 
     /* --- Laptop / Mobile Sender Controller --- */
     var sender = {
-        channel: null,
+        bridge: null,
         pc: null,
         stream: null,
         senderId: null,
@@ -203,13 +239,9 @@
     }
 
     function stopSender(notifyRemote) {
-        if (notifyRemote && sender.channel && sender.senderId) {
+        if (notifyRemote && sender.bridge && sender.senderId) {
             try {
-                sender.channel.send({
-                    type: 'broadcast',
-                    event: 'rtc',
-                    payload: { kind: 'stop', from: 'laptop', senderId: sender.senderId }
-                });
+                sender.bridge.send({ kind: 'stop', from: 'laptop', senderId: sender.senderId });
             } catch (e) {}
         }
 
@@ -225,16 +257,9 @@
             try { sender.pc.close(); } catch (e5) {}
             sender.pc = null;
         }
-        var client = TVApp.db.getRawClient();
-        if (sender.channel) {
-            try {
-                if (client && typeof client.removeChannel === 'function') {
-                    client.removeChannel(sender.channel);
-                } else if (typeof sender.channel.unsubscribe === 'function') {
-                    sender.channel.unsubscribe();
-                }
-            } catch (e6) {}
-            sender.channel = null;
+        if (sender.bridge) {
+            sender.bridge.close();
+            sender.bridge = null;
         }
         sender.senderId = null;
         sender.pendingIce = [];
@@ -245,11 +270,6 @@
         sender.callbacks = callbacks || {};
         if (!isScreenCaptureSupported()) {
             if (typeof sender.callbacks.onError === 'function') sender.callbacks.onError('UNSUPPORTED');
-            return;
-        }
-        var client = TVApp.db.getRawClient();
-        if (!client) {
-            if (typeof sender.callbacks.onError === 'function') sender.callbacks.onError('NO_SIGNALING');
             return;
         }
 
@@ -283,22 +303,13 @@
             };
         });
 
-        var ch = client.channel(makeChannelName(room, pin), {
-            config: { broadcast: { self: false } }
-        });
-        sender.channel = ch;
-
         pc.onicecandidate = function (event) {
-            if (!event.candidate || !sender.channel) return;
-            sender.channel.send({
-                type: 'broadcast',
-                event: 'rtc',
-                payload: {
-                    kind: 'ice',
-                    from: 'laptop',
-                    senderId: sender.senderId,
-                    candidate: event.candidate
-                }
+            if (!event.candidate || !sender.bridge) return;
+            sender.bridge.send({
+                kind: 'ice',
+                from: 'laptop',
+                senderId: sender.senderId,
+                candidate: event.candidate
             });
         };
 
@@ -311,8 +322,8 @@
             }
         };
 
-        ch.on('broadcast', { event: 'rtc' }, async function (msg) {
-            var p = msg && msg.payload;
+        var key = makeChannelName(room, pin);
+        sender.bridge = await createSignalingBridge(key, async function (p) {
             if (!p || p.from !== 'tv' || p.senderId !== sender.senderId) return;
 
             if (p.kind === 'answer' && p.sdp && sender.pc) {
@@ -336,23 +347,19 @@
             if (p.kind === 'stop') {
                 stopSender(false);
             }
-        });
-
-        ch.subscribe(async function (status) {
+        }, async function (status) {
             if (status === 'SUBSCRIBED') {
                 try {
                     var offer = await pc.createOffer();
                     await pc.setLocalDescription(offer);
-                    await ch.send({
-                        type: 'broadcast',
-                        event: 'rtc',
-                        payload: {
+                    if (sender.bridge) {
+                        await sender.bridge.send({
                             kind: 'offer',
                             from: 'laptop',
                             senderId: sender.senderId,
                             sdp: offer
-                        }
-                    });
+                        });
+                    }
                 } catch (err2) {
                     stopSender(false);
                     if (typeof sender.callbacks.onError === 'function') sender.callbacks.onError('SIGNAL_FAILED');
@@ -362,6 +369,11 @@
                 if (typeof sender.callbacks.onError === 'function') sender.callbacks.onError('SIGNAL_FAILED');
             }
         });
+
+        if (!sender.bridge) {
+            stopSender(false);
+            if (typeof sender.callbacks.onError === 'function') sender.callbacks.onError('NO_SIGNALING');
+        }
     }
 
     TVApp.webrtcCast = {
@@ -373,4 +385,3 @@
         stopSender: function () { stopSender(true); }
     };
 })(window);
-

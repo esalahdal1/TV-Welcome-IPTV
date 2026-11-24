@@ -97,7 +97,11 @@
         if (!state.verified) {
             if ($('mobPinGateTitle')) $('mobPinGateTitle').innerText = m.pinGateTitle;
             if ($('mobPinGateDesc')) $('mobPinGateDesc').innerText = m.pinGateDesc;
-            if ($('mobPinInput')) $('mobPinInput').placeholder = m.pinPlaceholder;
+            var pinField = $('mobPinInput');
+            if (pinField) {
+                pinField.placeholder = m.pinPlaceholder;
+                if (state.pin && !pinField.value) pinField.value = state.pin;
+            }
             if ($('mobPinSubmit')) $('mobPinSubmit').innerText = m.pinSubmit;
             return;
         }
@@ -216,13 +220,22 @@
 
     async function verifyCurrentPin(showErrorIfFailed) {
         var errEl = $('mobPinError');
+        var submitBtn = $('mobPinSubmit');
         if (!state.pin || !/^\d{4}$/.test(state.pin)) {
             state.verified = false;
             if (errEl) errEl.style.display = 'none';
             renderMobilePortal();
             return false;
         }
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = i18n.getLang() === 'en' ? 'Verifying...' : 'جارٍ التحقق...';
+        }
         var res = await db.verifyGuestPin(state.room, state.pin);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = i18n.dict().mobile.pinSubmit;
+        }
         if (res && res.valid) {
             state.verified = true;
             state.guestName = res.full_name || null;
@@ -341,7 +354,9 @@
             if (pinBtn) pinBtn.addEventListener('click', submitPin);
             if (pinInput) pinInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPin(); });
 
-            await loadHotelInfo();
+            // Render immediately so mobile never hangs on a blank page while waiting on network
+            renderMobilePortal();
+            loadHotelInfo().then(renderMobilePortal);
             await verifyCurrentPin(!!state.pin);
 
             // Poll periodically: expires mobile portal & stops WebRTC automatically if PIN rotated

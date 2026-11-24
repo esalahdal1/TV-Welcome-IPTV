@@ -6,6 +6,7 @@ local.properties
 .DS_Store
 node_modules/
 mvp/
+scripts/local_hotel_db.json
 # Python caches
 __pycache__/
 *.py[cod]

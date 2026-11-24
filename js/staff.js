@@ -451,7 +451,10 @@
     function updateSecurityBadge() {
         var el = $('staffSecurityBadge');
         if (!el) return;
-        if (state.rpcActive) {
+        if (db.isLocalMode && db.isLocalMode()) {
+            el.className = 'staff-sec-badge is-secure';
+            el.innerText = 'وضع خادم المكتب المحلي متصل (تخزين تلقائي في local_hotel_db.json)';
+        } else if (state.rpcActive) {
             el.className = 'staff-sec-badge is-secure';
             el.innerText = 'الحماية الخادمية (Supabase RPC + RLS) مفعّلة';
         } else {

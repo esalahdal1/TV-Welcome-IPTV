@@ -195,7 +195,36 @@ object Notifications {
         return sdf.format(Date())
     }
 
-    private fun fetchLatestAnchor(roomNumber: String?): String? {
+    private fun resolveLocalServerBase(context: Context): String? {
+        val prefs = context.getSharedPreferences(SetupActivity.PREFS_TV, Context.MODE_PRIVATE)
+        val raw = prefs.getString(SetupActivity.KEY_PORTAL_URL, null)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (raw.contains("github.io", ignoreCase = true)) return null
+        val qIdx = raw.indexOf('?')
+        val clean = if (qIdx >= 0) raw.substring(0, qIdx) else raw
+        return if (clean.endsWith("/")) clean else "$clean/"
+    }
+
+    private fun fetchLatestAnchor(context: Context, roomNumber: String?): String? {
+        val localBase = resolveLocalServerBase(context)
+        if (localBase != null) {
+            val base = "${localBase}api/notifications".toHttpUrl().newBuilder()
+            base.addQueryParameter("room", roomNumber ?: "")
+            base.addQueryParameter("latest", "1")
+            val req = Request.Builder().url(base.build()).build()
+            return runCatching {
+                client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) return@use null
+                    val arr = JSONArray(resp.body?.string().orEmpty())
+                    if (arr.length() > 0) {
+                        arr.optJSONObject(0)?.optString("created_at", "")?.trim()?.takeIf { it.isNotEmpty() }
+                            ?: currentIsoUtc()
+                    } else {
+                        currentIsoUtc()
+                    }
+                }
+            }.getOrNull()
+        }
+
         val base = "$SUPABASE_URL/rest/v1/tv_notifications".toHttpUrl().newBuilder()
         base.addQueryParameter("select", "created_at")
         if (roomNumber.isNullOrEmpty()) {
@@ -244,7 +273,28 @@ object Notifications {
         return pm.isInteractive
     }
 
-    private fun fetchNew(roomNumber: String?, lastSeen: String?): List<JSONObject> {
+    private fun fetchNew(context: Context, roomNumber: String?, lastSeen: String?): List<JSONObject> {
+        val localBase = resolveLocalServerBase(context)
+        if (localBase != null) {
+            val base = "${localBase}api/notifications".toHttpUrl().newBuilder()
+            base.addQueryParameter("room", roomNumber ?: "")
+            if (!lastSeen.isNullOrEmpty()) base.addQueryParameter("after", lastSeen)
+            val req = Request.Builder().url(base.build()).build()
+            val body = runCatching {
+                client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) return@use null
+                    resp.body?.string().orEmpty()
+                }
+            }.getOrNull() ?: return emptyList()
+            val arr = runCatching { JSONArray(body) }.getOrNull() ?: return emptyList()
+            val out = ArrayList<JSONObject>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                out.add(o)
+            }
+            return out
+        }
+
         val base = "$SUPABASE_URL/rest/v1/tv_notifications".toHttpUrl().newBuilder()
         base.addQueryParameter("select", "id,room_number,message,created_at")
         if (roomNumber.isNullOrEmpty()) {
@@ -334,12 +384,12 @@ object Notifications {
 
         val lastSeen = getLastSeen(context, room)
         if (lastSeen.isNullOrEmpty()) {
-            val anchor = fetchLatestAnchor(room) ?: return
+            val anchor = fetchLatestAnchor(context, room) ?: return
             setLastSeen(context, room, anchor)
             return
         }
 
-        val items = fetchNew(room, lastSeen)
+        val items = fetchNew(context, room, lastSeen)
         if (items.isEmpty()) return
 
         var maxCreatedAt: String = lastSeen

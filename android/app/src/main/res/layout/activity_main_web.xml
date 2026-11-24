@@ -16,19 +16,19 @@
     <Button
         android:id="@+id/update_button"
         android:layout_width="wrap_content"
-        android:layout_height="38dp"
-        android:layout_gravity="top|end"
-        android:layout_margin="14dp"
-        android:alpha="0.88"
+        android:layout_height="32dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="10dp"
+        android:alpha="0.82"
         android:background="@drawable/bg_tv_button"
         android:focusable="true"
         android:focusableInTouchMode="false"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:text="تحديث"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
-        android:textSize="13sp"
+        android:textSize="12sp"
         android:textStyle="bold" />
 
 </FrameLayout>
