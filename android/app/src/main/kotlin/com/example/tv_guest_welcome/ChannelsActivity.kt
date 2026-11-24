@@ -102,11 +102,7 @@ class ChannelsActivity : AppCompatActivity() {
         categoriesList.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
         categoriesList.adapter = categoryAdapter
 
-        channelsList.layoutManager = if (horizontalBrowseMode) {
-            GridLayoutManager(this, 3, RecyclerView.VERTICAL, false)
-        } else {
-            GridLayoutManager(this, 3, RecyclerView.VERTICAL, false)
-        }
+        channelsList.layoutManager = GridLayoutManager(this, 3, RecyclerView.VERTICAL, false)
         channelsList.adapter = channelAdapter
         channelsList.setHasFixedSize(true)
         channelsList.itemAnimator?.apply {
@@ -120,25 +116,28 @@ class ChannelsActivity : AppCompatActivity() {
         }
 
         if (!horizontalBrowseMode) {
+            val isRtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+            val keyToChannels = if (isRtl) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+            val keyToCategories = if (isRtl) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT
+
             categoriesList.setOnKeyListener { _, keyCode, event ->
                 if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-                when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        channelsList.requestFocus()
-                        true
-                    }
-                    else -> false
+                if (keyCode == keyToChannels) {
+                    val target = channelsList.findViewHolderForAdapterPosition(0)?.itemView ?: channelsList
+                    target.requestFocus()
+                    true
+                } else {
+                    false
                 }
             }
 
             channelsList.setOnKeyListener { _, keyCode, event ->
                 if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-                when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_LEFT -> {
-                        categoriesList.requestFocus()
-                        true
-                    }
-                    else -> false
+                if (keyCode == keyToCategories) {
+                    categoriesList.requestFocus()
+                    true
+                } else {
+                    false
                 }
             }
         } else {

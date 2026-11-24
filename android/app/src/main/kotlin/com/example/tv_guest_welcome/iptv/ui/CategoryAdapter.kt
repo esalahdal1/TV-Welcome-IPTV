@@ -1,5 +1,6 @@
 package com.example.tv_guest_welcome.iptv.ui
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
@@ -29,12 +30,19 @@ class CategoryAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
         holder.title.text = item.title
-        holder.title.isSelected = position == selectedIndex
+        val isSelected = position == selectedIndex
+        holder.title.isSelected = isSelected
+        holder.title.setTextColor(if (isSelected) Color.parseColor("#FBBF24") else Color.parseColor("#EAF0FF"))
         holder.title.setOnClickListener {
             select(position)
         }
         holder.title.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) select(position)
+            if (hasFocus) {
+                holder.title.setTextColor(Color.parseColor("#FBBF24"))
+                if (selectedIndex != position) select(position)
+            } else {
+                holder.title.setTextColor(if (position == selectedIndex) Color.parseColor("#FBBF24") else Color.parseColor("#EAF0FF"))
+            }
         }
     }
 

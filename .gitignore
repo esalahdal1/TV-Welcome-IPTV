@@ -5,6 +5,7 @@ build/
 local.properties
 .DS_Store
 node_modules/
+mvp/
 # Python caches
 __pycache__/
 *.py[cod]

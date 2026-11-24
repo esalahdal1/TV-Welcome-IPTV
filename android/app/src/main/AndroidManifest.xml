@@ -36,6 +36,12 @@
         <package android:name="com.google.android.youtube" />
         <package android:name="com.amazon.amazonvideo.livingroom" />
         <package android:name="com.amazon.avod.thirdpartyclient" />
+
+        <!-- تطبيقات استقبال بث الشاشة (AirPlay / Cast / Miracast) -->
+        <package android:name="com.ionitech.airscreen" />
+        <package android:name="com.github.imirror" />
+        <package android:name="com.screendock.airplay" />
+        <package android:name="com.prat3ik.imirror" />
     </queries>
 
     <application
@@ -43,8 +49,10 @@
         android:icon="@drawable/masaken_icon"
         android:roundIcon="@drawable/masaken_icon"
         android:label="masaken hotel"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
-        android:theme="@style/Theme.TVWelcome">
+        android:theme="@style/Theme.TVWelcome"
+        android:usesCleartextTraffic="true">
         
         <activity
             android:name=".MainActivity"
@@ -61,8 +69,9 @@
 
         <activity 
             android:name=".SetupActivity"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.TVWelcome" />
 
         <activity
             android:name=".ChannelsActivity"

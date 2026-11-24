@@ -8,8 +8,9 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.Toast
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -19,10 +20,14 @@ import androidx.media3.ui.PlayerView
 import com.example.tv_guest_welcome.iptv.Channel
 import com.example.tv_guest_welcome.iptv.IptvDefaults
 import com.example.tv_guest_welcome.iptv.IptvRepository
+import java.util.Locale
 
 class PlayerActivity : AppCompatActivity() {
     private lateinit var playerView: PlayerView
+    private lateinit var overlayBar: LinearLayout
     private lateinit var overlay: TextView
+    private lateinit var channelNumberBadge: TextView
+    private lateinit var channelGroupBadge: TextView
     private var player: ExoPlayer? = null
 
     private val handler = Handler(Looper.getMainLooper())
@@ -31,22 +36,23 @@ class PlayerActivity : AppCompatActivity() {
     private val channels: ArrayList<Channel> = arrayListOf()
     private var currentIndex: Int = 0
     private var skipOnErrorInProgress: Boolean = false
+    private var consecutiveErrorSkips: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        @Suppress("DEPRECATION")
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)
+        applyImmersiveUi()
 
         setContentView(R.layout.activity_player)
 
         playerView = findViewById(R.id.player_view)
+        overlayBar = findViewById(R.id.channel_overlay_bar)
         overlay = findViewById(R.id.channel_overlay)
+        channelNumberBadge = findViewById(R.id.channel_number_badge)
+        channelGroupBadge = findViewById(R.id.channel_group_badge)
 
         val fromIntentNames = intent.getStringArrayListExtra(EXTRA_CHANNEL_NAMES)
         val fromIntentUrls = intent.getStringArrayListExtra(EXTRA_CHANNEL_URLS)
@@ -84,6 +90,7 @@ class PlayerActivity : AppCompatActivity() {
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
+                    consecutiveErrorSkips = 0
                     markGoodUrl(channels.getOrNull(currentIndex)?.streamUrl)
                 }
             }
@@ -99,6 +106,7 @@ class PlayerActivity : AppCompatActivity() {
         val idx = intent.getIntExtra(EXTRA_START_INDEX, currentIndex)
         val target = idx.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
         if (target != currentIndex) {
+            consecutiveErrorSkips = 0
             playIndex(target)
         }
     }
@@ -110,6 +118,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        applyImmersiveUi()
         Notifications.bindForeground(window) { }
         Notifications.pollAsync(this)
     }
@@ -135,26 +144,20 @@ class PlayerActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_UP -> {
-                val intent = Intent(this, ChannelsActivity::class.java)
-                intent.putExtra(ChannelsActivity.EXTRA_HORIZONTAL_BROWSE, true)
-                intent.putExtra(ChannelsActivity.EXTRA_FOCUS_INDEX, currentIndex)
-                intent.putExtra(ChannelsActivity.EXTRA_RETURN_TO_PLAYER, true)
-                startActivity(intent)
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                openChannelBrowser()
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                if (channels.isNotEmpty()) {
-                    val next = (currentIndex - 1).coerceAtLeast(0)
-                    if (next != currentIndex) playIndex(next)
-                }
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> {
+                zapChannel(-1)
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (channels.isNotEmpty()) {
-                    val next = (currentIndex + 1).coerceAtMost(channels.size - 1)
-                    if (next != currentIndex) playIndex(next)
-                }
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP -> {
+                zapChannel(1)
+                return true
+            }
+            KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_MENU -> {
+                val item = channels.getOrNull(currentIndex)
+                if (item != null) showOverlay(currentIndex, item.name.ifEmpty { "قناة" }, item.groupTitle)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
@@ -170,6 +173,25 @@ class PlayerActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    private fun openChannelBrowser() {
+        val intent = Intent(this, ChannelsActivity::class.java)
+        intent.putExtra(ChannelsActivity.EXTRA_HORIZONTAL_BROWSE, true)
+        intent.putExtra(ChannelsActivity.EXTRA_FOCUS_INDEX, currentIndex)
+        intent.putExtra(ChannelsActivity.EXTRA_RETURN_TO_PLAYER, true)
+        startActivity(intent)
+        @Suppress("DEPRECATION")
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+    }
+
+    private fun zapChannel(step: Int) {
+        if (channels.isEmpty()) return
+        consecutiveErrorSkips = 0
+        val next = (currentIndex + step + channels.size) % channels.size
+        if (next != currentIndex || channels.size == 1) {
+            playIndex(next)
+        }
+    }
+
     private fun playIndex(index: Int) {
         currentIndex = index
         val item = channels.getOrNull(index) ?: return
@@ -181,12 +203,13 @@ class PlayerActivity : AppCompatActivity() {
         player?.prepare()
         player?.playWhenReady = true
 
-        showOverlay(name)
+        showOverlay(index, name, item.groupTitle)
     }
 
     private fun onPlaybackError() {
         if (skipOnErrorInProgress) return
         skipOnErrorInProgress = true
+        consecutiveErrorSkips++
 
         val badUrl = channels.getOrNull(currentIndex)?.streamUrl
         markBadUrl(badUrl)
@@ -195,17 +218,22 @@ class PlayerActivity : AppCompatActivity() {
         }
         IptvRepository.setPlaybackQueue(channels)
 
-        if (channels.isEmpty()) {
-            Toast.makeText(this, "لا توجد قنوات تعمل", Toast.LENGTH_LONG).show()
-            finish()
+        if (channels.isEmpty() || consecutiveErrorSkips >= MAX_CONSECUTIVE_SKIPS) {
+            skipOnErrorInProgress = false
+            Toast.makeText(this, "تعذر تشغيل هذه القنوات — افتح القائمة للاختيار", Toast.LENGTH_LONG).show()
+            if (channels.isNotEmpty()) {
+                openChannelBrowser()
+            } else {
+                finish()
+            }
             return
         }
 
         if (currentIndex >= channels.size) {
-            currentIndex = (channels.size - 1).coerceAtLeast(0)
+            currentIndex = 0
         }
 
-        showOverlay("تخطي قناة لا تعمل")
+        showOverlay(currentIndex, "تخطي قناة لا تعمل...", null)
         handler.postDelayed({
             skipOnErrorInProgress = false
             playIndex(currentIndex)
@@ -242,24 +270,46 @@ class PlayerActivity : AppCompatActivity() {
         prefs.edit().putStringSet(PREF_GOOD_URLS, updated).apply()
     }
 
-    private fun showOverlay(text: String) {
+    private fun showOverlay(index: Int, text: String, group: String?) {
+        channelNumberBadge.text = String.format(Locale.US, "%02d", index + 1)
         overlay.text = text
-        overlay.alpha = 1f
-        overlay.visibility = View.VISIBLE
+        val safeGroup = group?.trim().orEmpty()
+        if (safeGroup.isNotEmpty()) {
+            channelGroupBadge.text = safeGroup
+            channelGroupBadge.visibility = View.VISIBLE
+        } else {
+            channelGroupBadge.visibility = View.GONE
+        }
+
+        overlayBar.animate().cancel()
+        overlayBar.alpha = 0f
+        overlayBar.visibility = View.VISIBLE
+        overlayBar.animate().alpha(1f).setDuration(160).start()
+
         hideOverlayRunnable?.let { handler.removeCallbacks(it) }
         hideOverlayRunnable = Runnable {
-            overlay.animate().alpha(0f).setDuration(350).withEndAction {
-                overlay.visibility = View.GONE
-                overlay.alpha = 1f
+            overlayBar.animate().alpha(0f).setDuration(300).withEndAction {
+                overlayBar.visibility = View.GONE
+                overlayBar.alpha = 1f
             }.start()
         }
-        handler.postDelayed(hideOverlayRunnable!!, 1800L)
+        handler.postDelayed(hideOverlayRunnable!!, 2600L)
+    }
+
+    private fun applyImmersiveUi() {
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION)
     }
 
     companion object {
         private const val PREFS_NAME = "IPTV_PREFS"
         private const val PREF_BAD_URLS = "bad_urls"
         private const val PREF_GOOD_URLS = "good_urls"
+        private const val MAX_CONSECUTIVE_SKIPS = 8
 
         const val EXTRA_CHANNEL_NAMES = "extra_channel_names"
         const val EXTRA_CHANNEL_URLS = "extra_channel_urls"

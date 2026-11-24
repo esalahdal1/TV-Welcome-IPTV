@@ -4,2048 +4,430 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مساكن النزهة - ترحيب النزلاء</title>
+    <link rel="icon" href="3%20small.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;700;900&display=swap');
-
-        :root {
-            --bg0: #020617;
-            --bg1: #0b1226;
-            --glass: rgba(255, 255, 255, 0.06);
-            --glass2: rgba(255, 255, 255, 0.10);
-            --stroke: rgba(255, 255, 255, 0.12);
-            --text: rgba(255, 255, 255, 0.92);
-            --muted: rgba(255, 255, 255, 0.62);
-            --muted2: rgba(255, 255, 255, 0.42);
-            --gold: #fbbf24;
-            --gold2: #f59e0b;
-            --cyan: #22d3ee;
-            --indigo: #818cf8;
-            --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
-            --radius-xl: 28px;
-            --radius-lg: 18px;
-            --stage-w: 1920;
-            --stage-h: 1080;
-            --stage-scale: 1;
-        }
-
-        * { box-sizing: border-box; }
-
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-family: 'Cairo', sans-serif;
-            background: var(--bg0);
-            color: var(--text);
-            -webkit-font-smoothing: antialiased;
-            text-rendering: geometricPrecision;
-        }
-
-        .animated-bg {
-            position: fixed;
-            inset: 0;
-            z-index: -3;
-            background:
-                radial-gradient(1200px 600px at 10% 15%, rgba(129, 140, 248, 0.24) 0%, rgba(129, 140, 248, 0) 60%),
-                radial-gradient(900px 650px at 85% 20%, rgba(34, 211, 238, 0.18) 0%, rgba(34, 211, 238, 0) 62%),
-                radial-gradient(1200px 900px at 60% 90%, rgba(245, 158, 11, 0.14) 0%, rgba(245, 158, 11, 0) 62%),
-                linear-gradient(135deg, #020617 0%, #0b1226 45%, #070a18 100%);
-        }
-
-        .animated-bg::before {
-            content: '';
-            position: absolute;
-            inset: -40%;
-            background: conic-gradient(from 180deg at 50% 50%, rgba(129, 140, 248, 0.18), rgba(34, 211, 238, 0.12), rgba(245, 158, 11, 0.10), rgba(129, 140, 248, 0.18));
-            filter: blur(90px);
-            opacity: 0.9;
-            animation: aurora 18s ease-in-out infinite;
-        }
-
-        .animated-bg::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.0) 45%),
-                radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.0) 0%, rgba(0, 0, 0, 0.55) 100%);
-            z-index: 0;
-        }
-
-        @keyframes aurora {
-            0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.0); }
-            50% { transform: translate3d(3%, -2%, 0) rotate(22deg) scale(1.05); }
-            100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.0); }
-        }
-
-        .particles {
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            pointer-events: none;
-        }
-
-        .stage {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: calc(var(--stage-w) * 1px);
-            height: calc(var(--stage-h) * 1px);
-            transform: translate(-50%, -50%) scale(var(--stage-scale));
-            transform-origin: center;
-        }
-
-        .particle {
-            position: absolute;
-            width: var(--s);
-            height: var(--s);
-            left: var(--x);
-            top: var(--y);
-            border-radius: 999px;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 45%, rgba(255,255,255,0.02) 70%, rgba(255,255,255,0) 100%);
-            opacity: var(--o);
-            filter: blur(0.2px);
-            animation: floatUp var(--d) linear infinite;
-            transform: translate3d(0, 110vh, 0);
-        }
-
-        @keyframes floatUp {
-            0% { transform: translate3d(0, 110vh, 0) scale(0.85); }
-            100% { transform: translate3d(0, -30vh, 0) scale(1.25); }
-        }
-
-        .main-content {
-            height: 100%;
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-            padding: 56px 72px 44px;
-            gap: 26px;
-            position: relative;
-        }
-
-        .top-bar {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            align-items: start;
-            gap: 18px;
-        }
-
-        .panel {
-            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: var(--radius-xl);
-            backdrop-filter: blur(18px);
-            box-shadow: 0 18px 60px rgba(0,0,0,0.32);
-        }
-
-        .clock-container {
-            padding: 22px 24px;
-        }
-
-        .time {
-            font-size: 86px;
-            font-weight: 900;
-            line-height: 1.02;
-            letter-spacing: -1px;
-            background: linear-gradient(to bottom, rgba(255,255,255,1), rgba(148,163,184,0.9));
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .date {
-            font-size: 20px;
-            font-weight: 300;
-            opacity: 0.86;
-            margin-top: 6px;
-            line-height: 1.35;
-        }
-
-        .weather-container {
-            padding: 18px 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        div#weather {
-            color: #f0b628;
-            height: 194px;
-        }
-
-        .weather-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-        }
-
-        .weather-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 34px;
-            font-weight: 800;
-        }
-
-        .weather-meta {
-            text-align: left;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .weather-desc {
-            font-size: 18px;
-            color: var(--muted);
-            max-width: 320px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .weather-city {
-            font-size: 16px;
-            color: var(--muted2);
-            letter-spacing: 0.2px;
-        }
-
-        .hero {
-            display: grid;
-            place-items: center;
-            text-align: center;
-            position: relative;
-        }
-
-        .hero-card {
-            width: min(1120px, 100%);
-            padding: 44px 50px 38px;
-            border-radius: calc(var(--radius-xl) + 6px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(251,191,36,0.35) 0%, rgba(34,211,238,0.20) 35%, rgba(129,140,248,0.18) 70%, rgba(251,191,36,0.22) 100%);
-            opacity: 0.65;
-            filter: blur(26px);
-            transform: translate3d(0, 0, 0);
-            z-index: 0;
-        }
-
-        .hero-card::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(2,6,23,0.35), rgba(2,6,23,0.65));
-            z-index: 0;
-        }
-
-        .hero-inner {
-            position: relative;
-            z-index: 1;
-        }
-
-        .hotel-brand {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 28px;
-        }
-
-        .hotel-name {
-            font-size: 24px;
-            font-weight: 800;
-            letter-spacing: 6px;
-            color: rgba(251, 191, 36, 0.95);
-            text-transform: uppercase;
-            text-shadow: 0 0 18px rgba(251, 191, 36, 0.22);
-        }
-
-        .brand-line {
-            width: 84px;
-            height: 2px;
-            background: linear-gradient(90deg, rgba(245,158,11,0), rgba(245,158,11,1), rgba(245,158,11,0));
-            border-radius: 2px;
-        }
-
-        .welcome-msg {
-            font-size: 44px;
-            font-weight: 200;
-            margin: 0 0 10px;
-            opacity: 0.92;
-        }
-
-        .guest-name {
-            font-size: 108px;
-            font-weight: 900;
-            margin: 0 0 14px;
-            text-shadow: 0 22px 60px rgba(0,0,0,0.55);
-            background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(203,213,225,0.92) 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-            line-height: 1.08;
-            max-width: 980px;
-            margin-left: auto;
-            margin-right: auto;
-            white-space: normal;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-        }
-
-        div#guestName {
-            height: 150px;
-            color: #c4c4c4;
-            -webkit-text-fill-color: #c4c4c4;
-            background: none;
-        }
-
-        .guest-name.is-loading {
-            position: relative;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .guest-name.is-loading::after {
-            content: '';
-            display: block;
-            height: 1.1em;
-            border-radius: 14px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.20), rgba(255,255,255,0.08));
-            background-size: 200% 100%;
-            animation: shimmer 1.3s ease-in-out infinite;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-
-        .pill-row {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 0 0 16px;
-            flex-wrap: wrap;
-        }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.14);
-            background: rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.78);
-            font-size: 18px;
-            backdrop-filter: blur(10px);
-        }
-
-        .pill strong {
-            color: rgba(255,255,255,0.92);
-            font-weight: 900;
-        }
-
-        .welcome-sub {
-            font-size: 28px;
-            font-weight: 300;
-            opacity: 0.72;
-            max-width: 760px;
-            margin: 0 auto;
-            line-height: 1.75;
-        }
-
-        .bottom-bar {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas: "footer hint";
-            align-items: end;
-            gap: 18px;
-        }
-
-        .remote-hint {
-            grid-area: hint;
-            padding: 14px 18px;
-            border-radius: var(--radius-lg);
-            display: inline-flex;
-            justify-content: flex-start;
-            align-items: center;
-            gap: 10px;
-            color: rgba(255,255,255,0.70);
-            justify-self: end;
-        }
-
-        div.main-content > div.bottom-bar > div.remote-hint {
-            width: 400px;
-            height: 102px;
-        }
-
-        .key-badge {
-            background: linear-gradient(180deg, var(--gold), var(--gold2));
-            color: #1a1202;
-            padding: 3px 12px;
-            border-radius: 10px;
-            font-weight: 900;
-            box-shadow: 0 6px 0 rgba(180, 83, 9, 0.9);
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-
-        .footer {
-            grid-area: footer;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 18px;
-            justify-self: start;
-        }
-
-        div.main-content > div.bottom-bar > div.footer {
-            width: 400px;
-            height: 107px;
-        }
-
-        .company-info {
-            text-align: right;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-
-        .company-name {
-            font-size: 18px;
-            font-weight: 800;
-            color: rgba(248, 250, 252, 0.95);
-        }
-
-        .company-sub {
-            font-size: 14px;
-            opacity: 0.55;
-            letter-spacing: 0.7px;
-        }
-
-        div.main-content > div.bottom-bar > div.footer .company-info {
-            gap: 0px;
-        }
-
-        div.main-content > div.bottom-bar > div.footer .company-name,
-        div.main-content > div.bottom-bar > div.footer .company-sub {
-            line-height: 1.1;
-        }
-
-        .logo-box {
-            width: 72px;
-            height: 72px;
-            background: rgba(255,255,255,0.96);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 6px;
-            overflow: hidden;
-            box-shadow: 0 14px 34px rgba(0,0,0,0.35);
-            border: 2px solid rgba(0, 86, 179, 0.95);
-        }
-
-        .logo-box img {
-            width: 92%;
-            height: 92%;
-            object-fit: contain;
-        }
-
-        .fade-in {
-            animation: fadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(28px) scale(0.985); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .animated-bg::before { animation: none; }
-            .particle { animation: none; opacity: 0.25; }
-            .fade-in { animation: none; }
-            .guest-name.is-loading::after { animation: none; }
-        }
-
-        .admin-root {
-            position: fixed;
-            inset: 0;
-            padding: 56px 72px 44px;
-            display: none;
-        }
-
-        .admin-card {
-            height: 100%;
-            padding: 22px 22px;
-            display: grid;
-            grid-template-rows: auto auto 1fr;
-            gap: 14px;
-        }
-
-        .admin-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-        }
-
-        .admin-title {
-            font-size: 22px;
-            font-weight: 900;
-        }
-
-        .admin-row {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .admin-row input {
-            flex: 1;
-            height: 44px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.06);
-            color: var(--text);
-            padding: 0 14px;
-            outline: none;
-            font-family: 'Cairo', sans-serif;
-            font-size: 16px;
-        }
-
-        .admin-btn {
-            height: 44px;
-            padding: 0 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(251, 191, 36, 0.18);
-            color: var(--text);
-            font-family: 'Cairo', sans-serif;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .admin-btn.secondary {
-            background: rgba(255,255,255,0.08);
-        }
-
-        .admin-err {
-            color: #fecaca;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        .admin-list {
-            overflow: auto;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(0,0,0,0.16);
-        }
-
-        .admin-item {
-            display: grid;
-            grid-template-columns: 160px 1fr 160px;
-            gap: 12px;
-            align-items: center;
-            padding: 14px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.10);
-        }
-
-        .admin-item:last-child { border-bottom: none; }
-
-        .admin-room { font-weight: 900; }
-        .admin-name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        .admin-modal {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(10px);
-        }
-
-        .admin-modal-card {
-            width: min(820px, 92vw);
-            padding: 18px 18px;
-            display: grid;
-            gap: 12px;
-        }
-
-        .admin-modal-title {
-            font-size: 18px;
-            font-weight: 900;
-        }
-
-        .admin-modal textarea {
-            width: 100%;
-            min-height: 120px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.06);
-            color: var(--text);
-            padding: 12px 14px;
-            outline: none;
-            font-family: 'Cairo', sans-serif;
-            font-size: 16px;
-            resize: none;
-        }
-
-        .admin-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        .admin-status {
-            color: var(--muted);
-            font-size: 14px;
-            min-height: 18px;
-        }
-
-        .reception-root {
-            position: fixed;
-            inset: 0;
-            padding: 56px 72px 44px;
-            display: none;
-        }
-
-        .reception-card {
-            height: 100%;
-            padding: 22px 22px;
-            display: grid;
-            grid-template-rows: auto auto 1fr;
-            gap: 14px;
-        }
-
-        .reception-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-        }
-
-        .reception-title {
-            font-size: 22px;
-            font-weight: 900;
-        }
-
-        .reception-tabs {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-start;
-        }
-
-        .tab-btn {
-            height: 44px;
-            padding: 0 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.08);
-            color: var(--text);
-            font-family: 'Cairo', sans-serif;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .tab-btn.active {
-            background: rgba(251, 191, 36, 0.18);
-            border-color: rgba(251, 191, 36, 0.35);
-        }
-
-        .requests-table {
-            overflow: auto;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(0,0,0,0.16);
-        }
-
-        .req-row {
-            display: grid;
-            grid-template-columns: 1fr 160px 180px 160px 180px;
-            gap: 12px;
-            align-items: center;
-            padding: 14px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.10);
-        }
-
-        .req-row.head {
-            position: sticky;
-            top: 0;
-            z-index: 1;
-            background: rgba(10, 16, 32, 0.88);
-            backdrop-filter: blur(12px);
-        }
-
-        .req-cell {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .req-type { font-weight: 900; }
-        .req-room { font-weight: 900; color: rgba(234, 240, 255, 0.96); }
-        .req-date, .req-time { color: var(--muted); }
-
-        .guest-menu {
-            position: fixed;
-            top: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: min(980px, 92vw);
-            z-index: 9998;
-            pointer-events: none;
-            display: none;
-        }
-
-        .guest-menu-inner {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            pointer-events: auto;
-        }
-
-        .guest-card {
-            min-width: 240px;
-            padding: 14px 18px;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.16);
-            background: rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(16px);
-            box-shadow: 0 18px 60px rgba(0,0,0,0.35);
-            color: rgba(255,255,255,0.95);
-            font-size: 18px;
-            font-weight: 800;
-            cursor: pointer;
-            outline: none;
-        }
-
-        .guest-card.is-focused {
-            border-color: rgba(251, 191, 36, 0.60);
-            background: rgba(251, 191, 36, 0.10);
-            transform: translateY(-2px) scale(1.02);
-        }
-
-        .apps-menu {
-            position: fixed;
-            top: 0;
-            right: 0;
-            height: 100vh;
-            width: min(420px, 42vw);
-            z-index: 9997;
-            display: none;
-            padding: 22px 18px;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(16px);
-            border-left: 1px solid rgba(255,255,255,0.12);
-            box-shadow: -24px 0 80px rgba(0,0,0,0.45);
-        }
-
-        .apps-title {
-            font-size: 18px;
-            font-weight: 900;
-            color: rgba(255,255,255,0.92);
-            margin-bottom: 14px;
-        }
-
-        .apps-list {
-            display: grid;
-            gap: 10px;
-        }
-
-        .app-item {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 12px;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.14);
-            background: rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.94);
-            cursor: pointer;
-            outline: none;
-            font-weight: 900;
-            font-size: 18px;
-        }
-
-        .app-item.is-focused {
-            border-color: rgba(251, 191, 36, 0.60);
-            background: rgba(251, 191, 36, 0.12);
-            transform: translateX(-2px) scale(1.02);
-        }
-
-        .app-logo {
-            width: 42px;
-            height: 42px;
-            border-radius: 14px;
-            display: grid;
-            place-items: center;
-            font-size: 18px;
-            font-weight: 1000;
-            color: #fff;
-            flex: 0 0 auto;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-        }
-
-        .app-logo.netflix { background: rgba(229, 9, 20, 0.92); }
-        .app-logo.shahid { background: rgba(18, 184, 134, 0.92); }
-        .app-logo.appletv { background: rgba(28, 28, 30, 0.92); border: 1px solid rgba(255,255,255,0.18); }
-        .app-logo.youtube { background: rgba(255, 0, 0, 0.92); }
-        .app-logo.prime { background: rgba(0, 168, 225, 0.92); }
-
-        .apps-hint {
-            margin-top: 14px;
-            color: rgba(255,255,255,0.60);
-            font-size: 13px;
-            line-height: 1.4;
-        }
-
-        .guest-modal {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(10px);
-            z-index: 9999;
-        }
-
-        .guest-modal-card {
-            width: min(820px, 92vw);
-            padding: 18px 18px;
-            display: grid;
-            gap: 12px;
-        }
-
-        .guest-modal-title {
-            font-size: 18px;
-            font-weight: 900;
-        }
-
-        .guest-options {
-            display: grid;
-            gap: 10px;
-        }
-
-        .guest-option {
-            padding: 14px 14px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.14);
-            background: rgba(255,255,255,0.06);
-            color: var(--text);
-            font-weight: 800;
-            cursor: pointer;
-            outline: none;
-        }
-
-        .guest-option.is-focused {
-            border-color: rgba(251, 191, 36, 0.60);
-            background: rgba(251, 191, 36, 0.12);
-        }
-
-        .toast-host {
-            position: fixed;
-            top: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: min(980px, 92vw);
-            z-index: 9999;
-            pointer-events: none;
-            display: none;
-        }
-
-        .toast {
-            background: rgba(0, 0, 0, 0.62);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 16px;
-            backdrop-filter: blur(14px);
-            padding: 14px 18px;
-            color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 18px 60px rgba(0,0,0,0.35);
-            font-size: 18px;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-    </style>
+    <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
     <div class="animated-bg"></div>
     <div id="particles" class="particles"></div>
+
     <div id="toastHost" class="toast-host">
         <div id="toastText" class="toast"></div>
     </div>
 
     <div id="stage" class="stage">
-    <div class="main-content">
-        <div class="top-bar fade-in">
-            <div class="clock-container panel">
-                <div id="time" class="time">00:00</div>
-                <div id="date" class="date">الأثنين، 23 مارس</div>
-            </div>
-
-            <div id="weather" class="weather-container panel">
-                <div class="weather-row">
-                    <div class="weather-info">
-                        <i id="weather-icon" class="fas fa-cloud-sun"></i>
-                        <span id="temp">--°C</span>
-                    </div>
-                    <div class="weather-meta">
-                        <div id="weatherDesc" class="weather-desc">—</div>
-                        <div class="weather-city">جدة - حي النزهة، المملكة العربية السعودية</div>
-                    </div>
+        <div class="main-content">
+            <div class="top-bar fade-in">
+                <div class="clock-container panel">
+                    <div id="time" class="time">00:00</div>
+                    <div id="date" class="date">—</div>
                 </div>
-            </div>
-        </div>
 
-        <div class="hero fade-in">
-            <div class="hero-card panel">
-                <div class="hero-inner">
-                    <div class="hotel-brand">
-                        <div class="hotel-name">مساكن النزهة</div>
-                        <div class="brand-line"></div>
-                    </div>
-                    <div class="welcome-msg">مرحباً بك</div>
-                    <div id="guestName" class="guest-name is-loading">...</div>
-                    <div class="pill-row">
-                        <div id="roomPill" class="pill" style="display:none">
-                            <span>رقم الغرفة</span>
-                            <strong id="roomNumberText">—</strong>
+                <div id="prayerWidget" class="prayer-container panel">
+                    <div class="prayer-header">
+                        <div class="prayer-title">
+                            <i class="fas fa-mosque"></i>
+                            <span id="prayerTitleText">مواقيت الصلاة — جدة</span>
                         </div>
-                        <div class="pill">
-                            <span>نتمنى لك</span>
-                            <strong>إقامة مريحة</strong>
+                        <div id="prayerNext" class="prayer-next" style="display:none">—</div>
+                    </div>
+                    <div id="prayerGrid" class="prayer-grid"></div>
+                </div>
+
+                <div id="weather" class="weather-container panel">
+                    <div class="weather-row">
+                        <div class="weather-info">
+                            <i id="weather-icon" class="fas fa-cloud-sun"></i>
+                            <span id="temp">--°C</span>
+                        </div>
+                        <div class="weather-meta">
+                            <div id="weatherDesc" class="weather-desc">—</div>
+                            <div id="weatherCityText" class="weather-city">جدة - حي النزهة، المملكة العربية السعودية</div>
                         </div>
                     </div>
-                    <div class="welcome-sub">يسعدنا جداً استضافتك، ونتمنى لك إقامة هادئة ومميزة في رحاب مساكن النزهة.</div>
                 </div>
+            </div>
+
+            <div id="roomHeroSection" class="hero fade-in">
+                <div class="hero-card panel">
+                    <div class="hero-inner">
+                        <div class="hotel-brand">
+                            <div id="hotelNameText" class="hotel-name">مساكن النزهة</div>
+                            <div class="brand-line"></div>
+                        </div>
+                        <div id="welcomeMsg" class="welcome-msg">مرحباً بك</div>
+                        <div id="guestName" class="guest-name is-loading">...</div>
+                        <div class="pill-row">
+                            <div id="roomPill" class="pill is-gold" style="display:none">
+                                <span id="roomLabelText">رقم الغرفة</span>
+                                <strong id="roomNumberText">—</strong>
+                            </div>
+                            <div id="roomPinPill" class="pill is-gold" style="display:none">
+                                <span id="roomPinLabelText">رمز التوصيل (PIN)</span>
+                                <strong id="roomPinBadgeValue">----</strong>
+                            </div>
+                            <div class="pill">
+                                <span id="stayLabelText">نتمنى لك</span>
+                                <strong id="stayValueText">إقامة مريحة</strong>
+                            </div>
+                        </div>
+                        <div id="welcomeSubText" class="welcome-sub">يسعدنا جداً استضافتك، ونتمنى لك إقامة هادئة ومميزة في رحاب مساكن النزهة.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lobby / Hallways Digital Signage (?mode=lobby for the 9 hall TVs) -->
+            <div id="lobbySignage" class="lobby-signage fade-in" style="display:none">
+                <div class="lobby-panel panel">
+                    <div class="lobby-header-row">
+                        <span id="lobbyTag" class="lobby-tag">أهلاً بكم</span>
+                        <span id="lobbyBadgeText" class="lobby-badge">صالة الضيوف — مساكن النزهة</span>
+                    </div>
+                    <div class="lobby-main-grid">
+                        <div class="lobby-copy">
+                            <h1 id="lobbyTitle" class="lobby-title">مساكن النزهة للضيافة الفندقية</h1>
+                            <p id="lobbyBody" class="lobby-body"></p>
+                            <div id="lobbyHighlights" class="lobby-highlights"></div>
+                        </div>
+                        <div id="lobbyQrSide" class="lobby-qr-side" style="display:none">
+                            <div id="lobbyQrBox" class="qr-frame"></div>
+                            <div id="lobbyQrCaption" class="qr-caption"></div>
+                        </div>
+                    </div>
+                    <div id="lobbyDots" class="lobby-dots"></div>
+                </div>
+            </div>
+
+            <div id="actionDock" class="action-dock fade-in"></div>
+
+            <div class="bottom-bar fade-in">
+                <div class="footer panel">
+                    <div id="logoContainer" class="logo-box">
+                        <img src="3%20small.png" alt="MRC">
+                    </div>
+                    <div class="company-info">
+                        <div id="companyNameText" class="company-name">شركة مساكن الرفاهية</div>
+                        <div id="companySubText" class="company-sub">MASAKEN ALRAFAHYA COMPANY</div>
+                    </div>
+                </div>
+
+                <div id="remoteHint" class="remote-hint panel"></div>
             </div>
         </div>
+    </div>
 
-        <div class="bottom-bar fade-in">
-            <div class="remote-hint panel">
-                <span>اضغط</span>
-                <span class="key-badge">OK</span>
-                <span>لزيارة موقعنا الإلكتروني</span>
+    <!-- Entertainment Apps Sidebar -->
+    <div id="appsMenu" class="apps-menu">
+        <div id="appsTitle" class="apps-title">تطبيقات الترفيه</div>
+        <div id="appsList" class="apps-list"></div>
+        <div id="appsHint" class="apps-hint"></div>
+    </div>
+
+    <!-- Room Services Modal -->
+    <div id="servicesModal" class="tv-modal">
+        <div class="tv-modal-card panel">
+            <div class="tv-modal-header">
+                <div id="servicesModalTitle" class="tv-modal-title"></div>
+                <button type="button" class="tv-modal-close" data-close-modal="1" data-close-label="1">إغلاق (BACK)</button>
             </div>
+            <div id="servicesGrid" class="services-grid"></div>
+            <div id="servicesStatus" class="service-status"></div>
+            <div class="recent-wrap">
+                <div id="servicesRecentTitle" class="recent-title"></div>
+                <div id="servicesRecentList" class="recent-list"></div>
+            </div>
+        </div>
+    </div>
 
-            <div class="footer panel">
-                <div class="company-info">
-                    <div class="company-name">شركة مساكن الرفاهية</div>
-                    <div class="company-sub">MASAKEN ALRAFAHYA COMPANY</div>
+    <!-- Screen Cast & HDMI Modal -->
+    <div id="castModal" class="tv-modal">
+        <div class="tv-modal-card panel">
+            <div class="tv-modal-header">
+                <div id="castModalTitle" class="tv-modal-title"></div>
+                <button type="button" class="tv-modal-close" data-close-modal="1" data-close-label="1">إغلاق (BACK)</button>
+            </div>
+            <div id="castTabs" class="modal-tabs"></div>
+            <div class="cast-panel">
+                <div class="cast-left-col">
+                    <div id="castSteps" class="cast-steps"></div>
+                    <div id="castWebrtcStatusBox" class="cast-webrtc-box" style="display:none">
+                        <i class="fas fa-broadcast-tower"></i>
+                        <span id="castWebrtcStatusText"></span>
+                    </div>
+                    <button id="castLaunchReceiverBtn" type="button" class="cast-action-btn" style="display:none"></button>
                 </div>
-                <div id="logoContainer" class="logo-box">
-                    <img src="3%20small.png" alt="MRC" />
+                <div class="cast-pin-box">
+                    <div id="castQrBox" class="qr-frame"></div>
+                    <div id="castQrTitle" class="qr-caption"></div>
+                    <div id="castPinLabel" class="cast-pin-label"></div>
+                    <div id="castPinValue" class="cast-pin-value">----</div>
+                    <div id="castDeviceName" class="cast-device-name"></div>
+                    <div id="castPinNote" class="cast-pin-note"></div>
+                    <a id="castPreviewLink" class="preview-pill-link" href="#" target="_blank" style="display:none"></a>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Hotel Guide & Wi-Fi Modal -->
+    <div id="guideModal" class="tv-modal">
+        <div class="tv-modal-card panel">
+            <div class="tv-modal-header">
+                <div id="guideModalTitle" class="tv-modal-title"></div>
+                <button type="button" class="tv-modal-close" data-close-modal="1" data-close-label="1">إغلاق (BACK)</button>
+            </div>
+            <div class="guide-layout">
+                <div id="guideGrid" class="guide-grid"></div>
+                <div class="guide-qr-box">
+                    <div id="guideQrBox" class="qr-frame"></div>
+                    <div id="guideQrTitle" class="qr-caption"></div>
+                    <a id="guidePreviewLink" class="preview-pill-link" href="#" target="_blank" style="display:none"></a>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="adminRoot" class="admin-root">
-        <div class="admin-card panel">
-            <div class="admin-header">
-                <div class="admin-title">لوحة الإدارة</div>
-                <button id="adminSendAll" class="admin-btn">ارسال اشعار للكل</button>
+    <!-- Mobile Guest Portal (?guest=1&room=...&pin=...) -->
+    <div id="mobilePortalRoot" class="mob-root">
+        <div class="mob-shell">
+            <header class="mob-header panel">
+                <div>
+                    <div id="mobBrandTitle" class="mob-brand">مساكن النزهة</div>
+                    <div id="mobSubtitle" class="mob-sub">بوابة خدمات الغرفة على جوالك</div>
+                </div>
+                <div class="mob-header-actions">
+                    <span id="mobRoomBadge" class="mob-room-pill">غرفة 101</span>
+                    <button id="mobLangToggle" type="button" class="mob-lang-btn">English</button>
+                </div>
+            </header>
+
+            <section id="mobPinGate" class="mob-card panel" style="display:none">
+                <div id="mobPinGateTitle" class="mob-section-title">تأكيد الدخول للغرفة</div>
+                <p id="mobPinGateDesc" class="mob-desc"></p>
+                <div class="mob-pin-form">
+                    <input id="mobPinInput" type="tel" inputmode="numeric" maxlength="4" placeholder="4821">
+                    <button id="mobPinSubmit" type="button" class="mob-primary-btn"></button>
+                </div>
+                <div id="mobPinError" class="mob-err" style="display:none"></div>
+            </section>
+
+            <div id="mobPortalBody" class="mob-body" style="display:none">
+                <section class="mob-card panel mob-welcome-banner">
+                    <div id="mobGuestGreeting" class="mob-guest-name">ضيفنا العزيز</div>
+                </section>
+
+                <section class="mob-card panel">
+                    <div class="mob-card-head">
+                        <i class="fas fa-wifi"></i>
+                        <span id="mobWifiTitle" class="mob-section-title"></span>
+                    </div>
+                    <div class="mob-wifi-box">
+                        <div>
+                            <div class="mob-wifi-label">SSID</div>
+                            <div id="mobWifiSsid" class="mob-wifi-val">—</div>
+                        </div>
+                        <div>
+                            <div class="mob-wifi-label">Password</div>
+                            <div id="mobWifiPass" class="mob-wifi-val">—</div>
+                        </div>
+                        <button id="mobCopyWifi" type="button" class="mob-primary-btn"></button>
+                    </div>
+                </section>
+
+                <section class="mob-card panel">
+                    <div class="mob-card-head">
+                        <i class="fas fa-concierge-bell"></i>
+                        <span id="mobServicesTitle" class="mob-section-title"></span>
+                    </div>
+                    <div id="mobServicesGrid" class="mob-services-grid"></div>
+                    <div id="mobServiceStatus" class="mob-status"></div>
+                </section>
+
+                <section class="mob-card panel">
+                    <div class="mob-card-head">
+                        <i class="fas fa-clock"></i>
+                        <span id="mobHistoryTitle" class="mob-section-title"></span>
+                    </div>
+                    <div id="mobHistoryList" class="mob-history-list"></div>
+                </section>
+
+                <section class="mob-card panel">
+                    <div class="mob-card-head">
+                        <i class="fas fa-laptop"></i>
+                        <span id="mobCastTitle" class="mob-section-title"></span>
+                        <span class="mob-pin-tag">PIN: <strong id="mobActivePinVal">----</strong></span>
+                    </div>
+                    <div id="mobCastTabs" class="mob-tabs"></div>
+                    <div id="mobWebrtcBox" class="mob-webrtc-wrap" style="display:none">
+                        <button id="mobWebrtcBtn" type="button" class="mob-webrtc-btn"></button>
+                        <div id="mobWebrtcNote" class="mob-webrtc-note"></div>
+                    </div>
+                    <div id="mobCastSteps" class="mob-steps"></div>
+                </section>
+
+                <section class="mob-card panel">
+                    <div class="mob-card-head">
+                        <i class="fas fa-hotel"></i>
+                        <span id="mobGuideTitle" class="mob-section-title"></span>
+                    </div>
+                    <div id="mobGuideList" class="mob-guide-list"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified Hotel Staff Console (?admin=1 or ?reception=1) -->
+    <div id="staffRoot" class="staff-root">
+        <div id="staffToast" class="staff-toast" style="display:none"></div>
+        <div class="staff-card panel">
+            <div class="staff-topbar">
+                <div>
+                    <div class="admin-title">لوحة الاستقبال وإدارة الفندق — مساكن النزهة</div>
+                    <div id="staffSecurityBadge" class="staff-sec-badge is-legacy">جارٍ التحقق...</div>
+                </div>
+                <div class="staff-top-actions">
+                    <button id="staffSoundToggle" type="button" class="tab-btn">التنبيه الصوتي: مفعّل</button>
+                    <button id="staffLogoutBtn" type="button" class="admin-btn secondary">خروج</button>
+                </div>
             </div>
 
-            <div id="adminLogin">
+            <div id="staffLoginBox" class="staff-login-box">
                 <div class="admin-row">
-                    <input id="adminPass" type="password" inputmode="numeric" placeholder="الرمز السري" />
-                    <button id="adminLoginBtn" class="admin-btn">دخول</button>
+                    <input id="staffPassInput" type="password" inputmode="numeric" placeholder="الرمز السري (الافتراضي: 1234)">
+                    <button id="staffLoginBtn" type="button" class="admin-btn">دخول</button>
                 </div>
-                <div id="adminLoginErr" class="admin-err" style="display:none"></div>
+                <div id="staffLoginErr" class="admin-err" style="display:none"></div>
             </div>
 
-            <div id="adminPanel" style="display:none">
-                <div id="adminList" class="admin-list"></div>
+            <div id="staffDashboard" class="staff-dashboard" style="display:none">
+                <div class="staff-nav-tabs">
+                    <button type="button" class="tab-btn active" data-staff-tab="rooms">الغرف والتسكين</button>
+                    <button type="button" class="tab-btn" data-staff-tab="requests">
+                        طلبات النزلاء
+                        <span id="staffPendingBadge" class="staff-count-badge" style="display:none">0</span>
+                    </button>
+                    <button type="button" class="tab-btn" data-staff-tab="notifications">الإشعارات</button>
+                    <button type="button" class="tab-btn" data-staff-tab="settings">إعدادات الفندق والأمان</button>
+                </div>
+
+                <!-- Pane 1: Rooms & Check-in/Check-out -->
+                <div class="staff-pane" data-staff-pane="rooms">
+                    <div class="staff-toolbar">
+                        <input id="staffRoomSearch" type="text" placeholder="بحث برقم الغرفة أو اسم النزيل...">
+                        <div class="staff-filter-group">
+                            <button type="button" class="tab-btn active" data-room-filter="all">الكل</button>
+                            <button type="button" class="tab-btn" data-room-filter="occupied">مشغولة</button>
+                            <button type="button" class="tab-btn" data-room-filter="vacant">شاغرة</button>
+                        </div>
+                        <button id="staffAddRoomBtn" type="button" class="admin-btn">+ تسكين / إضافة غرفة</button>
+                    </div>
+                    <div id="staffRoomsStats" class="staff-stats-bar"></div>
+                    <div id="staffRoomsList" class="staff-scroll-box"></div>
+                </div>
+
+                <!-- Pane 2: Guest Requests -->
+                <div class="staff-pane" data-staff-pane="requests" style="display:none">
+                    <div class="reception-tabs">
+                        <button id="tabPending" type="button" class="tab-btn active">الطلبات الحالية</button>
+                        <button id="tabDone" type="button" class="tab-btn">طلبات مكتملة</button>
+                    </div>
+                    <div id="requestsTable" class="requests-table"></div>
+                </div>
+
+                <!-- Pane 3: Notifications -->
+                <div class="staff-pane" data-staff-pane="notifications" style="display:none">
+                    <div class="staff-toolbar">
+                        <span class="staff-section-note">إرسال رسائل فورية تظهر على شاشات الغرف أو كإشعار أندرويد.</span>
+                        <button id="adminSendAll" type="button" class="admin-btn">إرسال إشعار للجميع</button>
+                    </div>
+                    <div id="staffNotifFeed" class="staff-scroll-box"></div>
+                </div>
+
+                <!-- Pane 4: Settings & Staff PIN -->
+                <div class="staff-pane" data-staff-pane="settings" style="display:none">
+                    <div class="staff-settings-grid">
+                        <div class="staff-subcard">
+                            <div class="admin-modal-title">معلومات الفندق والواي فاي (تظهر لجميع الشاشات والجوال)</div>
+                            <label class="staff-field"><span>اسم شبكة الواي فاي (SSID)</span><input id="setWifiName" type="text"></label>
+                            <label class="staff-field"><span>كلمة مرور الواي فاي</span><input id="setWifiPass" type="text"></label>
+                            <label class="staff-field"><span>تحويلة الاستقبال</span><input id="setReceptionExt" type="text"></label>
+                            <label class="staff-field"><span>مواعيد الإفطار</span><input id="setBreakfast" type="text"></label>
+                            <label class="staff-field"><span>موعد المغادرة</span><input id="setCheckout" type="text"></label>
+                            <button id="saveSettingsBtn" type="button" class="admin-btn">حفظ الإعدادات</button>
+                            <div id="settingsSaveStatus" class="admin-status"></div>
+                        </div>
+
+                        <div class="staff-subcard">
+                            <div class="admin-modal-title">تغيير الرمز السري للوحة الموظفين</div>
+                            <label class="staff-field"><span>الرمز الحالي</span><input id="pinOldInput" type="password" inputmode="numeric"></label>
+                            <label class="staff-field"><span>الرمز الجديد (4 أرقام فأكثر)</span><input id="pinNewInput" type="password" inputmode="numeric"></label>
+                            <button id="changePinBtn" type="button" class="admin-btn">تحديث الرمز السري</button>
+                            <div id="pinChangeStatus" class="admin-status"></div>
+                            <div class="staff-lobby-shortcut">
+                                <a class="preview-pill-link" href="?mode=lobby" target="_blank">معاينة وضع شاشات الصالات الـ 9 (?mode=lobby)</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Check-in / Edit Guest Modal -->
+    <div id="checkinModal" class="admin-modal">
+        <div class="admin-modal-card panel">
+            <div class="admin-modal-title">تسكين / تعديل بيانات الغرفة</div>
+            <label class="staff-field"><span>رقم الغرفة / الشقة</span><input id="checkinRoomInput" type="text" placeholder="مثال: 101"></label>
+            <label class="staff-field"><span>اسم النزيل (اتركه فارغًا لحالة شاغرة)</span><input id="checkinNameInput" type="text" placeholder="مثال: أ. محمد العتيبي"></label>
+            <label class="staff-field">
+                <span>لغة الشاشة المفضلة</span>
+                <select id="checkinLangSelect">
+                    <option value="ar">العربية</option>
+                    <option value="en">English</option>
+                </select>
+            </label>
+            <div class="admin-actions">
+                <button id="checkinCancelBtn" type="button" class="admin-btn secondary">إلغاء</button>
+                <button id="checkinSaveBtn" type="button" class="admin-btn">حفظ وتوليد PIN جديد</button>
+            </div>
+            <div id="checkinStatus" class="admin-status"></div>
+        </div>
+    </div>
+
+    <!-- Send Notification Modal -->
     <div id="adminModal" class="admin-modal">
         <div class="admin-modal-card panel">
-            <div id="adminModalTitle" class="admin-modal-title">ارسال اشعار</div>
-            <textarea id="adminMsg" placeholder="اكتب نص الاشعار هنا..."></textarea>
+            <div id="adminModalTitle" class="admin-modal-title">إرسال إشعار</div>
+            <textarea id="adminMsg" placeholder="اكتب نص الإشعار هنا..."></textarea>
             <div class="admin-actions">
-                <button id="adminCancel" class="admin-btn secondary">إلغاء</button>
-                <button id="adminSend" class="admin-btn">إرسال</button>
+                <button id="adminCancel" type="button" class="admin-btn secondary">إلغاء</button>
+                <button id="adminSend" type="button" class="admin-btn">إرسال</button>
             </div>
             <div id="adminStatus" class="admin-status"></div>
         </div>
     </div>
 
-    <div id="receptionRoot" class="reception-root">
-        <div class="reception-card panel">
-            <div class="reception-header">
-                <div class="reception-title">طلبات الاستقبال</div>
-                <div class="reception-tabs">
-                    <button id="tabPending" class="tab-btn active">الطلبات</button>
-                    <button id="tabDone" class="tab-btn">طلبات مكتملة</button>
-                </div>
-            </div>
-
-            <div id="receptionLogin">
-                <div class="admin-row">
-                    <input id="receptionPass" type="password" inputmode="numeric" placeholder="الرمز السري" />
-                    <button id="receptionLoginBtn" class="admin-btn">دخول</button>
-                </div>
-                <div id="receptionLoginErr" class="admin-err" style="display:none"></div>
-            </div>
-
-            <div id="receptionPanel" style="display:none">
-                <div id="requestsTable" class="requests-table"></div>
-            </div>
+    <!-- Fullscreen WebRTC Laptop Cast Overlay on TV -->
+    <div id="webrtcCastStage" class="webrtc-stage">
+        <video id="tvCastVideo" class="webrtc-video" autoplay playsinline></video>
+        <div class="webrtc-hud">
+            <span id="webrtcCastBannerText"></span>
+            <button id="webrtcStopTvBtn" type="button" class="webrtc-stop-btn"></button>
         </div>
     </div>
 
-    <div id="guestMenu" class="guest-menu">
-        <div class="guest-menu-inner">
-            <button id="guestRequestCard" class="guest-card is-focused">طلب</button>
-        </div>
-    </div>
-
-    <div id="appsMenu" class="apps-menu">
-        <div class="apps-title">تطبيقات الترفيه</div>
-        <div id="appsList" class="apps-list"></div>
-        <div class="apps-hint">يمين: فتح القائمة • أعلى/أسفل: تنقل • OK: فتح التطبيق • رجوع/يسار: إغلاق</div>
-    </div>
-
-    <div id="guestRequestModal" class="guest-modal">
-        <div class="guest-modal-card panel">
-            <div class="guest-modal-title">اختر نوع الطلب</div>
-            <div id="guestOptions" class="guest-options"></div>
-            <div class="admin-actions">
-                <button id="guestCancel" class="admin-btn secondary">إلغاء</button>
-                <button id="guestSend" class="admin-btn">إرسال</button>
-            </div>
-            <div id="guestStatus" class="admin-status"></div>
-        </div>
-    </div>
-
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const SUPABASE_URL =
-            params.get('sbUrl') ||
-            localStorage.getItem('SB_URL') ||
-            'https://ayfvvzawdbdcsiugazvn.supabase.co';
-        const SUPABASE_KEY =
-            params.get('sbKey') ||
-            localStorage.getItem('SB_KEY') ||
-            'sb_publishable_V5a3JRO2UI371xQ-9MwT8w_J_8XT8Cm';
-
-        if (params.get('sbUrl')) localStorage.setItem('SB_URL', params.get('sbUrl'));
-        if (params.get('sbKey')) localStorage.setItem('SB_KEY', params.get('sbKey'));
-
-        const { createClient } = supabase;
-        const _supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
-        function normalizeDigits(input) {
-            return String(input || '')
-                .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-                .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
-        }
-
-        const adminParamRaw = (params.get('admin') || '').trim();
-        const adminParam = normalizeDigits(adminParamRaw);
-        const IS_ADMIN = adminParam === '1' || adminParam.toLowerCase() === 'true';
-
-        const receptionParamRaw = (params.get('reception') || '').trim();
-        const receptionParam = normalizeDigits(receptionParamRaw);
-        const IS_RECEPTION = receptionParam === '1' || receptionParam.toLowerCase() === 'true';
-
-        if (IS_ADMIN || IS_RECEPTION) {
-            const main = document.querySelector('.main-content');
-            if (main) main.style.display = 'none';
-            if (IS_ADMIN) {
-                const adminRoot = document.getElementById('adminRoot');
-                if (adminRoot) adminRoot.style.display = 'block';
-            }
-            if (IS_RECEPTION) {
-                const receptionRoot = document.getElementById('receptionRoot');
-                if (receptionRoot) receptionRoot.style.display = 'block';
-            }
-        }
-
-        function applyStageScale() {
-            const rootStyle = getComputedStyle(document.documentElement);
-            const w = parseFloat(rootStyle.getPropertyValue('--stage-w')) || 1920;
-            const h = parseFloat(rootStyle.getPropertyValue('--stage-h')) || 1080;
-            const scale = Math.min(window.innerWidth / w, window.innerHeight / h);
-            document.documentElement.style.setProperty('--stage-scale', String(scale));
-            fitGuestName();
-        }
-
-        function fitGuestName() {
-            const el = document.getElementById('guestName');
-            if (!el) return;
-            if (el.classList.contains('is-loading')) return;
-            const s = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stage-scale')) || 1;
-            const maxHeight = 240 * s;
-            const maxFont = 108;
-            const minFont = 54;
-            const step = 2;
-            el.style.fontSize = `${maxFont}px`;
-            for (let size = maxFont; size >= minFont; size -= step) {
-                el.style.fontSize = `${size}px`;
-                const h = el.getBoundingClientRect().height;
-                if (h <= maxHeight) break;
-            }
-        }
-
-        applyStageScale();
-        window.addEventListener('resize', applyStageScale);
-
-        // إنشاء جزيئات عائمة
-        function createParticles() {
-            const container = document.getElementById('particles');
-            container.innerHTML = '';
-            const particleCount = 24;
-            for (let i = 0; i < particleCount; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                const size = Math.random() * 7 + 6;
-                const duration = Math.random() * 12 + 12;
-                const opacity = Math.random() * 0.38 + 0.12;
-                p.style.setProperty('--s', `${size}px`);
-                p.style.setProperty('--x', `${Math.random() * 100}vw`);
-                p.style.setProperty('--y', `${Math.random() * 100}vh`);
-                p.style.setProperty('--d', `${duration}s`);
-                p.style.setProperty('--o', `${opacity}`);
-                container.appendChild(p);
-            }
-        }
-        createParticles();
-
-        // تحديث الساعة والتاريخ
-        function updateClock() {
-            const now = new Date();
-            let timeText = "";
-            let gregDate = "";
-            let hijriDate = "";
-
-            try {
-                timeText = new Intl.DateTimeFormat('ar-SA', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true,
-                    timeZone: 'Asia/Riyadh'
-                }).format(now);
-
-                gregDate = new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    timeZone: 'Asia/Riyadh'
-                }).format(now);
-
-                hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    timeZone: 'Asia/Riyadh'
-                }).format(now);
-            } catch (e) {
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                timeText = `${hours}:${minutes}`;
-                gregDate = now.toLocaleDateString('ar-SA', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                });
-                hijriDate = "";
-            }
-
-            document.getElementById('time').innerText = timeText;
-
-            // التاريخ الهجري (تقويم القرى)
-            if (hijriDate) {
-                document.getElementById('date').innerHTML = `${gregDate}<br>${hijriDate} هـ`;
-            } else {
-                document.getElementById('date').innerText = gregDate;
-            }
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        // جلب الطقس (جدة كمثال)
-        async function fetchWeather() {
-            try {
-                const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=21.5433&longitude=39.1728&current=temperature_2m,weather_code&timezone=Asia%2FRiyadh');
-                const data = await response.json();
-                const temp = data && data.current ? data.current.temperature_2m : null;
-                const code = data && data.current ? data.current.weather_code : null;
-
-                const descFromCode = (c) => {
-                    const n = Number(c);
-                    if (n === 0) return 'Clear';
-                    if (n === 1) return 'Mainly clear';
-                    if (n === 2) return 'Partly cloudy';
-                    if (n === 3) return 'Overcast';
-                    if (n === 45 || n === 48) return 'Fog';
-                    if (n === 51 || n === 53 || n === 55) return 'Drizzle';
-                    if (n === 56 || n === 57) return 'Freezing drizzle';
-                    if (n === 61 || n === 63 || n === 65) return 'Rain';
-                    if (n === 66 || n === 67) return 'Freezing rain';
-                    if (n === 71 || n === 73 || n === 75) return 'Snow';
-                    if (n === 77) return 'Snow grains';
-                    if (n === 80 || n === 81 || n === 82) return 'Rain showers';
-                    if (n === 85 || n === 86) return 'Snow showers';
-                    if (n === 95) return 'Thunderstorm';
-                    if (n === 96 || n === 99) return 'Thunderstorm (hail)';
-                    return '—';
-                };
-                const desc = descFromCode(code);
-                
-                document.getElementById('temp').innerText = (temp == null) ? '—' : `${Math.round(temp)}°C`;
-                document.getElementById('weatherDesc').innerText = desc || '—';
-                
-                const icon = document.getElementById('weather-icon');
-                const n = Number(code);
-                if (n === 0) icon.className = 'fas fa-sun';
-                else if (n === 1 || n === 2) icon.className = 'fas fa-cloud-sun';
-                else if (n === 3) icon.className = 'fas fa-cloud';
-                else if (n === 45 || n === 48) icon.className = 'fas fa-smog';
-                else if (n >= 51 && n <= 67) icon.className = 'fas fa-cloud-showers-heavy';
-                else if (n >= 71 && n <= 77) icon.className = 'fas fa-snowflake';
-                else if (n >= 80 && n <= 86) icon.className = 'fas fa-cloud-rain';
-                else if (n >= 95) icon.className = 'fas fa-bolt';
-                else icon.className = 'fas fa-cloud-sun';
-
-                try {
-                    localStorage.setItem('LAST_WEATHER', JSON.stringify({ temp, desc, ts: Date.now() }));
-                } catch (e) {}
-            } catch (err) {
-                console.error('Weather error:', err);
-                try {
-                    const cached = JSON.parse(localStorage.getItem('LAST_WEATHER') || 'null');
-                    if (cached && cached.temp != null) {
-                        document.getElementById('temp').innerText = `${cached.temp}°C`;
-                        document.getElementById('weatherDesc').innerText = cached.desc || '—';
-                        return;
-                    }
-                } catch (e) {}
-                document.getElementById('temp').innerText = '—';
-                document.getElementById('weatherDesc').innerText = '—';
-            }
-        }
-        fetchWeather();
-        setInterval(fetchWeather, 1800000); // كل 30 دقيقة
-
-        // جلب اسم النزيل
-        async function fetchGuest() {
-            if (IS_ADMIN) return;
-            const urlParams = new URLSearchParams(window.location.search);
-            const room = urlParams.get('room');
-            const nameElement = document.getElementById('guestName');
-            const roomPill = document.getElementById('roomPill');
-            const roomNumberText = document.getElementById('roomNumberText');
-
-            if (room) {
-                roomPill.style.display = 'inline-flex';
-                roomNumberText.innerText = room;
-            } else {
-                roomPill.style.display = 'none';
-            }
-
-            if (!room) {
-                nameElement.classList.remove('is-loading');
-                nameElement.innerText = "ضيفنا العزيز";
-                fitGuestName();
-                return;
-            }
-
-            try {
-                if (!_supabase) {
-                    nameElement.classList.remove('is-loading');
-                    nameElement.innerText = "ضيفنا العزيز";
-                    fitGuestName();
-                    return;
-                }
-                const { data, error } = await _supabase
-                    .from('guests')
-                    .select('full_name')
-                    .eq('room_number', room)
-                    .maybeSingle();
-
-                if (data && data.full_name) {
-                    nameElement.classList.remove('is-loading');
-                    nameElement.innerText = data.full_name;
-                    fitGuestName();
-                } else {
-                    nameElement.classList.remove('is-loading');
-                    nameElement.innerText = "ضيفنا العزيز";
-                    fitGuestName();
-                }
-            } catch (err) {
-                console.error('Error:', err);
-                nameElement.classList.remove('is-loading');
-                nameElement.innerText = "ضيفنا العزيز";
-                fitGuestName();
-            }
-        }
-        fetchGuest();
-        setInterval(fetchGuest, 30000);
-
-        let toastHideTimer = null;
-        const toastQueue = [];
-        let toastShowing = false;
-
-        function showToast(message) {
-            const host = document.getElementById('toastHost');
-            const text = document.getElementById('toastText');
-            if (!host || !text) return;
-            text.textContent = message;
-            host.style.display = 'block';
-            host.style.opacity = '0';
-            host.animate([{ opacity: 0, transform: 'translateX(-50%) translateY(-6px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0px)' }], { duration: 180, easing: 'ease-out', fill: 'forwards' });
-            if (toastHideTimer) clearTimeout(toastHideTimer);
-            toastHideTimer = setTimeout(() => {
-                host.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
-                setTimeout(() => {
-                    host.style.display = 'none';
-                    toastShowing = false;
-                    flushToastQueue();
-                }, 240);
-            }, 5000);
-        }
-
-        function enqueueToast(message) {
-            if (!message) return;
-            toastQueue.push(message);
-            flushToastQueue();
-        }
-
-        function flushToastQueue() {
-            if (toastShowing) return;
-            const next = toastQueue.shift();
-            if (!next) return;
-            toastShowing = true;
-            showToast(next);
-        }
-
-        function getNotifKey(room) {
-            return `NOTIF_LAST_SEEN_${room || 'ALL'}`;
-        }
-
-        function getRoomParam() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const room = (urlParams.get('room') || '').trim();
-            return room || null;
-        }
-
-        function getIsoNow() {
-            return new Date().toISOString();
-        }
-
-        async function pollNotificationsOnce() {
-            if (IS_ADMIN) return;
-            if (!_supabase) return;
-            const room = getRoomParam();
-            const lastKey = getNotifKey(room);
-            let lastSeen = (localStorage.getItem(lastKey) || '').trim();
-            if (!lastSeen) {
-                lastSeen = getIsoNow();
-                localStorage.setItem(lastKey, lastSeen);
-                return;
-            }
-
-            const q = _supabase
-                .from('tv_notifications')
-                .select('id,room_number,message,created_at')
-                .order('created_at', { ascending: true })
-                .limit(10);
-
-            const q2 = room
-                ? q.or(`room_number.is.null,room_number.eq.${room}`)
-                : q.eq('room_number', null);
-
-            const { data, error } = await q2.gt('created_at', lastSeen);
-            if (error) return;
-
-            const rows = Array.isArray(data) ? data : [];
-            if (rows.length === 0) return;
-
-            let max = lastSeen;
-            for (const r of rows) {
-                const msg = String((r && r.message) || '').trim();
-                const created = String((r && r.created_at) || '').trim();
-                if (created && created > max) max = created;
-                if (msg) enqueueToast(msg);
-            }
-            if (max !== lastSeen) localStorage.setItem(lastKey, max);
-        }
-
-        if (!IS_ADMIN) {
-            setTimeout(() => pollNotificationsOnce(), 3000);
-            setInterval(() => pollNotificationsOnce(), 20000);
-        }
-
-        const GUEST_REQUEST_TYPES = [
-            { key: 'cleaning', label: 'خدمة تنظيف الغرف' },
-            { key: 'early_checkout', label: 'خروج مبكر' }
-        ];
-
-        const guestMenu = document.getElementById('guestMenu');
-        const guestRequestCard = document.getElementById('guestRequestCard');
-        const guestRequestModal = document.getElementById('guestRequestModal');
-        const guestOptions = document.getElementById('guestOptions');
-        const guestCancel = document.getElementById('guestCancel');
-        const guestSend = document.getElementById('guestSend');
-        const guestStatus = document.getElementById('guestStatus');
-        const appsMenu = document.getElementById('appsMenu');
-        const appsList = document.getElementById('appsList');
-
-        let guestMenuOpen = false;
-        let guestCardFocused = 0;
-        let requestTypeOpen = false;
-        let requestTypeFocused = 0;
-        let appsMenuOpen = false;
-        let appsFocused = 0;
-
-        const ENTERTAINMENT_APPS = [
-            { id: 'netflix', name: 'نتفلكس', logo: 'N', cls: 'netflix' },
-            { id: 'shahid', name: 'شاهد', logo: 'S', cls: 'shahid' },
-            { id: 'appletv', name: 'ابل تي في', logo: '', cls: 'appletv' },
-            { id: 'youtube', name: 'يوتيوب', logo: '▶', cls: 'youtube' },
-            { id: 'prime', name: 'برايم فيديو', logo: 'P', cls: 'prime' }
-        ];
-
-        function isOkKey(e) {
-            const k = e.key;
-            const code = e.code;
-            const kc = e.keyCode || e.which || 0;
-            return k === 'Enter' || k === 'OK' || k === 'Select' || code === 'Enter' || kc === 23 || kc === 66;
-        }
-
-        function isBackKey(e) {
-            const k = e.key;
-            const kc = e.keyCode || e.which || 0;
-            return k === 'Backspace' || k === 'Escape' || kc === 4 || kc === 111;
-        }
-
-        function isUpKey(e) {
-            const k = e.key;
-            const kc = e.keyCode || e.which || 0;
-            return k === 'ArrowUp' || kc === 19 || kc === 38;
-        }
-
-        function isDownKey(e) {
-            const k = e.key;
-            const kc = e.keyCode || e.which || 0;
-            return k === 'ArrowDown' || kc === 20 || kc === 40;
-        }
-
-        function isLeftKey(e) {
-            const k = e.key;
-            const kc = e.keyCode || e.which || 0;
-            return k === 'ArrowLeft' || kc === 21 || kc === 37;
-        }
-
-        function isRightKey(e) {
-            const k = e.key;
-            const kc = e.keyCode || e.which || 0;
-            return k === 'ArrowRight' || kc === 22 || kc === 39;
-        }
-
-        function setDpadDownBlocked(blocked) {
-            try {
-                if (window.TVIP && typeof window.TVIP.setDpadDownBlocked === 'function') {
-                    window.TVIP.setDpadDownBlocked(!!blocked);
-                }
-            } catch (e) {}
-        }
-
-        function updateDpadDownBlockedState() {
-            setDpadDownBlocked(!!(guestMenuOpen || requestTypeOpen || appsMenuOpen));
-        }
-
-        function buildAppsList() {
-            if (!appsList) return;
-            appsList.innerHTML = ENTERTAINMENT_APPS.map((a, idx) => {
-                const focused = idx === appsFocused ? 'is-focused' : '';
-                return `
-                    <button class="app-item ${focused}" data-idx="${idx}" data-id="${a.id}">
-                        <span class="app-logo ${a.cls}">${a.logo}</span>
-                        <span class="app-name">${a.name}</span>
-                    </button>
-                `;
-            }).join('');
-            appsList.querySelectorAll('button[data-idx]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = Number(btn.getAttribute('data-idx') || '0') || 0;
-                    appsFocused = Math.max(0, Math.min(ENTERTAINMENT_APPS.length - 1, idx));
-                    updateAppsFocus();
-                    launchFocusedApp();
-                });
-            });
-        }
-
-        function updateAppsFocus() {
-            if (!appsList) return;
-            appsList.querySelectorAll('.app-item').forEach(el => el.classList.remove('is-focused'));
-            const active = appsList.querySelector(`.app-item[data-idx="${appsFocused}"]`);
-            if (active) active.classList.add('is-focused');
-        }
-
-        function openAppsMenu() {
-            if (!appsMenu) return;
-            appsMenuOpen = true;
-            appsFocused = 0;
-            buildAppsList();
-            updateAppsFocus();
-            updateDpadDownBlockedState();
-            appsMenu.style.display = 'block';
-            appsMenu.style.opacity = '0';
-            appsMenu.animate(
-                [{ opacity: 0, transform: 'translateX(18px)' }, { opacity: 1, transform: 'translateX(0px)' }],
-                { duration: 170, easing: 'ease-out', fill: 'forwards' }
-            );
-        }
-
-        function closeAppsMenu() {
-            if (!appsMenu) return;
-            appsMenuOpen = false;
-            updateDpadDownBlockedState();
-            appsMenu.style.display = 'none';
-        }
-
-        function launchFocusedApp() {
-            const a = ENTERTAINMENT_APPS[appsFocused];
-            if (!a) return;
-            closeAppsMenu();
-            window.location.href = `tvip://launch?id=${encodeURIComponent(a.id)}`;
-        }
-
-        function openGuestMenu() {
-            if (!guestMenu) return;
-            guestMenuOpen = true;
-            updateDpadDownBlockedState();
-            guestMenu.style.display = 'block';
-            guestMenu.style.opacity = '0';
-            guestMenu.animate(
-                [{ opacity: 0, transform: 'translateX(-50%) translateY(-10px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0px)' }],
-                { duration: 180, easing: 'ease-out', fill: 'forwards' }
-            );
-            updateGuestCardFocus();
-        }
-
-        function closeGuestMenu() {
-            if (!guestMenu) return;
-            guestMenuOpen = false;
-            updateDpadDownBlockedState();
-            guestMenu.style.display = 'none';
-        }
-
-        function updateGuestCardFocus() {
-            if (!guestRequestCard) return;
-            guestRequestCard.classList.toggle('is-focused', guestCardFocused === 0);
-        }
-
-        function buildGuestOptions() {
-            if (!guestOptions) return;
-            guestOptions.innerHTML = GUEST_REQUEST_TYPES.map((t, idx) => {
-                const focused = idx === requestTypeFocused ? 'is-focused' : '';
-                return `<button class="guest-option ${focused}" data-idx="${idx}" data-key="${t.key}">${t.label}</button>`;
-            }).join('');
-            guestOptions.querySelectorAll('button[data-idx]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    requestTypeFocused = Number(btn.getAttribute('data-idx') || '0') || 0;
-                    updateGuestOptionFocus();
-                    sendGuestRequest();
-                });
-            });
-        }
-
-        function updateGuestOptionFocus() {
-            if (!guestOptions) return;
-            guestOptions.querySelectorAll('.guest-option').forEach(el => el.classList.remove('is-focused'));
-            const active = guestOptions.querySelector(`.guest-option[data-idx="${requestTypeFocused}"]`);
-            if (active) active.classList.add('is-focused');
-        }
-
-        function openRequestTypeModal() {
-            if (!guestRequestModal) return;
-            requestTypeOpen = true;
-            updateDpadDownBlockedState();
-            requestTypeFocused = 0;
-            if (guestStatus) guestStatus.innerText = '';
-            buildGuestOptions();
-            guestRequestModal.style.display = 'flex';
-        }
-
-        function closeRequestTypeModal() {
-            if (!guestRequestModal) return;
-            requestTypeOpen = false;
-            updateDpadDownBlockedState();
-            guestRequestModal.style.display = 'none';
-        }
-
-        function formatDateYmd(iso) {
-            try {
-                const d = new Date(iso);
-                return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
-            } catch (e) {
-                return String(iso || '').slice(0, 10);
-            }
-        }
-
-        function formatTime12(iso) {
-            try {
-                const d = new Date(iso);
-                return new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Riyadh' }).format(d);
-            } catch (e) {
-                return '';
-            }
-        }
-
-        async function sendGuestRequest() {
-            if (!guestStatus) return;
-            const room = getRoomParam();
-            if (!room) {
-                guestStatus.innerText = 'رقم الغرفة غير معروف';
-                return;
-            }
-            if (!_supabase) {
-                guestStatus.innerText = 'Supabase غير متوفر';
-                return;
-            }
-            const t = GUEST_REQUEST_TYPES[requestTypeFocused];
-            if (!t) return;
-            guestStatus.innerText = 'جارٍ الإرسال...';
-            const payload = { room_number: room, request_type: t.label };
-            const { error } = await _supabase.from('tv_requests').insert([payload]);
-            if (error) {
-                guestStatus.innerText = error.message || 'فشل الإرسال';
-                return;
-            }
-            guestStatus.innerText = 'تم الإرسال';
-            enqueueToast('تم إرسال الطلب');
-            setTimeout(() => {
-                closeRequestTypeModal();
-                closeGuestMenu();
-            }, 450);
-        }
-
-        if (guestRequestCard) {
-            guestRequestCard.addEventListener('click', () => openRequestTypeModal());
-        }
-        if (guestCancel) guestCancel.addEventListener('click', () => closeRequestTypeModal());
-        if (guestSend) guestSend.addEventListener('click', () => sendGuestRequest());
-        if (guestRequestModal) {
-            guestRequestModal.addEventListener('click', (e) => {
-                if (e.target === guestRequestModal) closeRequestTypeModal();
-            });
-        }
-
-        updateDpadDownBlockedState();
-
-        document.addEventListener('keydown', function(event) {
-            if (IS_ADMIN || IS_RECEPTION) return;
-
-            if (appsMenuOpen) {
-                if (isBackKey(event) || isLeftKey(event)) {
-                    event.preventDefault();
-                    closeAppsMenu();
-                    return;
-                }
-                if (isUpKey(event)) {
-                    event.preventDefault();
-                    appsFocused = Math.max(0, appsFocused - 1);
-                    updateAppsFocus();
-                    return;
-                }
-                if (isDownKey(event)) {
-                    event.preventDefault();
-                    appsFocused = Math.min(ENTERTAINMENT_APPS.length - 1, appsFocused + 1);
-                    updateAppsFocus();
-                    return;
-                }
-                if (isOkKey(event)) {
-                    event.preventDefault();
-                    launchFocusedApp();
-                    return;
-                }
-                return;
-            }
-
-            if (requestTypeOpen) {
-                if (isBackKey(event)) {
-                    event.preventDefault();
-                    closeRequestTypeModal();
-                    return;
-                }
-                if (isUpKey(event)) {
-                    event.preventDefault();
-                    requestTypeFocused = Math.max(0, requestTypeFocused - 1);
-                    updateGuestOptionFocus();
-                    return;
-                }
-                if (isDownKey(event)) {
-                    event.preventDefault();
-                    requestTypeFocused = Math.min(GUEST_REQUEST_TYPES.length - 1, requestTypeFocused + 1);
-                    updateGuestOptionFocus();
-                    return;
-                }
-                if (isOkKey(event)) {
-                    event.preventDefault();
-                    sendGuestRequest();
-                    return;
-                }
-                return;
-            }
-
-            if (guestMenuOpen) {
-                if (isBackKey(event)) {
-                    event.preventDefault();
-                    closeGuestMenu();
-                    return;
-                }
-                if (isLeftKey(event) || isRightKey(event)) {
-                    event.preventDefault();
-                    guestCardFocused = 0;
-                    updateGuestCardFocus();
-                    return;
-                }
-                if (isOkKey(event)) {
-                    event.preventDefault();
-                    openRequestTypeModal();
-                    return;
-                }
-            }
-
-            if (isUpKey(event)) {
-                event.preventDefault();
-                if (guestMenuOpen) closeGuestMenu();
-                else openGuestMenu();
-                return;
-            }
-
-            if (isRightKey(event)) {
-                event.preventDefault();
-                if (!guestMenuOpen && !requestTypeOpen) openAppsMenu();
-                return;
-            }
-
-            if (isOkKey(event)) {
-                window.location.href = 'https://www.masaken-rc.com.sa';
-            }
-        });
-
-        function openAdminModal(targetRoom) {
-            const modal = document.getElementById('adminModal');
-            const title = document.getElementById('adminModalTitle');
-            const msg = document.getElementById('adminMsg');
-            const status = document.getElementById('adminStatus');
-            if (!modal || !title || !msg || !status) return;
-            modal.style.display = 'flex';
-            title.innerText = targetRoom ? `ارسال اشعار - شقة ${targetRoom}` : 'ارسال اشعار للكل';
-            msg.value = '';
-            msg.dataset.room = targetRoom || '';
-            status.innerText = '';
-            setTimeout(() => msg.focus(), 50);
-        }
-
-        function closeAdminModal() {
-            const modal = document.getElementById('adminModal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        async function loadAdminGuests() {
-            const list = document.getElementById('adminList');
-            if (!list) return;
-            if (!_supabase) {
-                list.innerHTML = '<div class="admin-item"><div class="admin-room">خطأ</div><div class="admin-name">Supabase غير متوفر</div><div></div></div>';
-                return;
-            }
-            list.innerHTML = '<div class="admin-item"><div class="admin-room">تحميل...</div><div class="admin-name"></div><div></div></div>';
-            const { data, error } = await _supabase
-                .from('guests')
-                .select('room_number, full_name')
-                .order('room_number', { ascending: true });
-            if (error) {
-                list.innerHTML = `<div class="admin-item"><div class="admin-room">خطأ</div><div class="admin-name">${error.message || 'فشل التحميل'}</div><div></div></div>`;
-                return;
-            }
-            const rows = (data || []).filter(r => r && r.room_number);
-            if (rows.length === 0) {
-                list.innerHTML = '<div class="admin-item"><div class="admin-room">لا يوجد</div><div class="admin-name">لا توجد شقق</div><div></div></div>';
-                return;
-            }
-            list.innerHTML = rows.map(r => {
-                const room = String(r.room_number || '').trim();
-                const name = String(r.full_name || '').trim() || '—';
-                return `
-                    <div class="admin-item">
-                        <div class="admin-room">${room}</div>
-                        <div class="admin-name">${name}</div>
-                        <button class="admin-btn" data-room="${room}">ارسال</button>
-                    </div>
-                `;
-            }).join('');
-            list.querySelectorAll('button[data-room]').forEach(btn => {
-                btn.addEventListener('click', () => openAdminModal(btn.getAttribute('data-room') || ''));
-            });
-        }
-
-        async function sendAdminNotification(targetRoom, message) {
-            const status = document.getElementById('adminStatus');
-            if (status) status.innerText = 'جارٍ الإرسال...';
-            if (!_supabase) {
-                if (status) status.innerText = 'Supabase غير متوفر';
-                return;
-            }
-            const payload = { message: message };
-            if (targetRoom) payload.room_number = targetRoom;
-            const { error } = await _supabase.from('tv_notifications').insert([payload]);
-            if (error) {
-                if (status) status.innerText = error.message || 'فشل الإرسال';
-                return;
-            }
-            if (status) status.innerText = 'تم الإرسال';
-            setTimeout(() => closeAdminModal(), 650);
-        }
-
-        function initAdmin() {
-            const pass = document.getElementById('adminPass');
-            const loginBtn = document.getElementById('adminLoginBtn');
-            const loginErr = document.getElementById('adminLoginErr');
-            const loginBox = document.getElementById('adminLogin');
-            const panel = document.getElementById('adminPanel');
-            const sendAll = document.getElementById('adminSendAll');
-            const cancel = document.getElementById('adminCancel');
-            const send = document.getElementById('adminSend');
-            const msg = document.getElementById('adminMsg');
-
-            const stored = sessionStorage.getItem('ADMIN_OK');
-            const setLoggedIn = () => {
-                if (loginBox) loginBox.style.display = 'none';
-                if (panel) panel.style.display = 'block';
-                loadAdminGuests();
-                setInterval(loadAdminGuests, 20000);
-            };
-
-            if (stored === '1') setLoggedIn();
-
-            const tryLogin = () => {
-                const code = normalizeDigits((pass?.value || '').trim());
-                if (code !== '1234') {
-                    if (loginErr) {
-                        loginErr.style.display = 'block';
-                        loginErr.innerText = 'رمز غير صحيح';
-                    }
-                    return;
-                }
-                sessionStorage.setItem('ADMIN_OK', '1');
-                if (loginErr) loginErr.style.display = 'none';
-                setLoggedIn();
-            };
-
-            if (loginBtn) loginBtn.addEventListener('click', tryLogin);
-            if (pass) pass.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') tryLogin();
-            });
-
-            if (sendAll) sendAll.addEventListener('click', () => openAdminModal(''));
-            if (cancel) cancel.addEventListener('click', () => closeAdminModal());
-            if (send) send.addEventListener('click', () => {
-                const text = (msg?.value || '').trim();
-                if (!text) return;
-                const room = (msg?.dataset.room || '').trim();
-                sendAdminNotification(room, text);
-            });
-
-            const modal = document.getElementById('adminModal');
-            if (modal) modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeAdminModal();
-            });
-        }
-
-        if (IS_ADMIN) initAdmin();
-
-        function setTabActive(active) {
-            const a = document.getElementById('tabPending');
-            const b = document.getElementById('tabDone');
-            if (a) a.classList.toggle('active', active === 'pending');
-            if (b) b.classList.toggle('active', active === 'done');
-        }
-
-        let receptionTab = 'pending';
-
-        async function loadRequests() {
-            const table = document.getElementById('requestsTable');
-            if (!table) return;
-            if (!_supabase) {
-                table.innerHTML = '<div class="req-row"><div class="req-cell req-type">خطأ</div><div class="req-cell">—</div><div class="req-cell">—</div><div class="req-cell">Supabase غير متوفر</div><div class="req-cell">—</div></div>';
-                return;
-            }
-
-            table.innerHTML = `
-                <div class="req-row head">
-                    <div class="req-cell req-type">طلب</div>
-                    <div class="req-cell req-room">رقم الشقة</div>
-                    <div class="req-cell req-date">تاريخ الطلب</div>
-                    <div class="req-cell req-time">الساعة</div>
-                    <div class="req-cell"> </div>
-                </div>
-                <div class="req-row"><div class="req-cell req-type">تحميل...</div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div></div>
-            `;
-
-            const { data, error } = await _supabase
-                .from('tv_requests')
-                .select('id,room_number,request_type,created_at,completed_at,status')
-                .eq('status', receptionTab)
-                .order('created_at', { ascending: false })
-                .limit(80);
-
-            if (error) {
-                table.innerHTML = `
-                    <div class="req-row head">
-                        <div class="req-cell req-type">طلب</div>
-                        <div class="req-cell req-room">رقم الشقة</div>
-                        <div class="req-cell req-date">تاريخ الطلب</div>
-                        <div class="req-cell req-time">الساعة</div>
-                        <div class="req-cell"> </div>
-                    </div>
-                    <div class="req-row"><div class="req-cell req-type">خطأ</div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell">${error.message || 'فشل التحميل'}</div><div class="req-cell"></div></div>
-                `;
-                return;
-            }
-
-            const rows = Array.isArray(data) ? data : [];
-            if (rows.length === 0) {
-                table.innerHTML = `
-                    <div class="req-row head">
-                        <div class="req-cell req-type">طلب</div>
-                        <div class="req-cell req-room">رقم الشقة</div>
-                        <div class="req-cell req-date">تاريخ الطلب</div>
-                        <div class="req-cell req-time">الساعة</div>
-                        <div class="req-cell"> </div>
-                    </div>
-                    <div class="req-row"><div class="req-cell req-type">لا يوجد</div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div><div class="req-cell"></div></div>
-                `;
-                return;
-            }
-
-            table.innerHTML = `
-                <div class="req-row head">
-                    <div class="req-cell req-type">طلب</div>
-                    <div class="req-cell req-room">رقم الشقة</div>
-                    <div class="req-cell req-date">تاريخ الطلب</div>
-                    <div class="req-cell req-time">الساعة</div>
-                    <div class="req-cell"> </div>
-                </div>
-                ${rows.map(r => {
-                    const id = String(r.id || '').trim();
-                    const type = String(r.request_type || '').trim() || '—';
-                    const room = String(r.room_number || '').trim() || '—';
-                    const created = String(r.created_at || '').trim();
-                    const date = created ? formatDateYmd(created) : '—';
-                    const time = created ? formatTime12(created) : '—';
-                    const btn = (receptionTab === 'pending')
-                        ? `<button class="admin-btn" data-done="${id}">تم الاكمال</button>`
-                        : `<div class="req-cell"></div>`;
-                    return `
-                        <div class="req-row">
-                            <div class="req-cell req-type">${type}</div>
-                            <div class="req-cell req-room">${room}</div>
-                            <div class="req-cell req-date">${date}</div>
-                            <div class="req-cell req-time">${time}</div>
-                            <div class="req-cell">${btn}</div>
-                        </div>
-                    `;
-                }).join('')}
-            `;
-
-            table.querySelectorAll('button[data-done]').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const id = (btn.getAttribute('data-done') || '').trim();
-                    if (!id) return;
-                    btn.disabled = true;
-                    const { error: e2 } = await _supabase
-                        .from('tv_requests')
-                        .update({ status: 'done', completed_at: new Date().toISOString() })
-                        .eq('id', id);
-                    if (e2) {
-                        btn.disabled = false;
-                        return;
-                    }
-                    loadRequests();
-                });
-            });
-        }
-
-        function initReception() {
-            const pass = document.getElementById('receptionPass');
-            const loginBtn = document.getElementById('receptionLoginBtn');
-            const loginErr = document.getElementById('receptionLoginErr');
-            const loginBox = document.getElementById('receptionLogin');
-            const panel = document.getElementById('receptionPanel');
-            const tabPending = document.getElementById('tabPending');
-            const tabDone = document.getElementById('tabDone');
-
-            const stored = sessionStorage.getItem('RECEPTION_OK');
-            const setLoggedIn = () => {
-                if (loginBox) loginBox.style.display = 'none';
-                if (panel) panel.style.display = 'block';
-                setTabActive(receptionTab);
-                loadRequests();
-                setInterval(loadRequests, 12000);
-            };
-
-            if (stored === '1') setLoggedIn();
-
-            const tryLogin = () => {
-                const code = normalizeDigits((pass?.value || '').trim());
-                if (code !== '1234') {
-                    if (loginErr) {
-                        loginErr.style.display = 'block';
-                        loginErr.innerText = 'رمز غير صحيح';
-                    }
-                    return;
-                }
-                sessionStorage.setItem('RECEPTION_OK', '1');
-                if (loginErr) loginErr.style.display = 'none';
-                setLoggedIn();
-            };
-
-            if (loginBtn) loginBtn.addEventListener('click', tryLogin);
-            if (pass) pass.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') tryLogin();
-            });
-
-            if (tabPending) tabPending.addEventListener('click', () => {
-                receptionTab = 'pending';
-                setTabActive(receptionTab);
-                loadRequests();
-            });
-            if (tabDone) tabDone.addEventListener('click', () => {
-                receptionTab = 'done';
-                setTabActive(receptionTab);
-                loadRequests();
-            });
-        }
-
-        if (IS_RECEPTION) initReception();
-    </script>
+    <script defer src="js/config.js"></script>
+    <script defer src="js/i18n.js"></script>
+    <script defer src="js/supabase-client.js"></script>
+    <script defer src="js/webrtc-cast.js"></script>
+    <script defer src="js/widgets.js"></script>
+    <script defer src="js/portal.js"></script>
+    <script defer src="js/mobile-portal.js"></script>
+    <script defer src="js/lobby.js"></script>
+    <script defer src="js/staff.js"></script>
+    <script defer src="js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مساكن النزهة — التشغيل المحلي</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 20% 20%, #1c3154 0%, #0b1426 55%, #060a14 100%);
+    color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Arial, sans-serif;
+  }
+  .shell {
+    width: 100%;
+    height: 100%;
+    padding: 44px 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .brand-mark {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #d4af37, #f5d76e);
+    color: #0b1426;
+    font-size: 24px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(212, 175, 55, 0.25);
+  }
+  .brand-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: #ffffff;
+  }
+  .brand-sub {
+    font-size: 13px;
+    color: #d4af37;
+    margin-top: 2px;
+    letter-spacing: 1.5px;
+  }
+  .top-meta {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .pill {
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(212, 175, 55, 0.38);
+    font-size: 16px;
+    font-weight: 700;
+    color: #f5d76e;
+  }
+  .clock-box {
+    text-align: end;
+  }
+  .clock-time {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .clock-date {
+    font-size: 14px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+  .hero {
+    margin: auto 0;
+    padding: 36px 44px;
+    border-radius: 26px;
+    background: rgba(15, 26, 46, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  }
+  .offline-tag {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.16);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fcd34d;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 46px;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 12px;
+  }
+  .lead {
+    font-size: 20px;
+    line-height: 1.65;
+    color: #cbd5e1;
+    max-width: 820px;
+  }
+  .info-row {
+    display: flex;
+    gap: 18px;
+    margin-top: 26px;
+    flex-wrap: wrap;
+  }
+  .info-card {
+    flex: 1;
+    min-width: 210px;
+    padding: 16px 20px;
+    border-radius: 16px;
+    background: rgba(8, 13, 26, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .info-label {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 6px;
+  }
+  .info-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: start;
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-top: 24px;
+  }
+  .btn-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    background: rgba(15, 26, 46, 0.88);
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 16px;
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+  }
+  .btn.is-focused, .btn:focus {
+    background: linear-gradient(135deg, #d4af37, #e5c158);
+    color: #0b1426;
+    border-color: #ffffff;
+    transform: translateY(-2px) scale(1.03);
+  }
+  .hint {
+    font-size: 14px;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <div class="brand-title" id="brandTitle">مساكن النزهة</div>
+          <div class="brand-sub">MASAKEN AL-NUZHA HOTEL</div>
+        </div>
+      </div>
+      <div class="top-meta">
+        <div class="pill" id="roomBadge">غرفة —</div>
+        <div class="clock-box">
+          <div class="clock-time" id="clockTime">--:--</div>
+          <div class="clock-date" id="clockDate">جدة • المملكة العربية السعودية</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div class="offline-tag" id="offlineTag">الوضع المحلي الاحتياطي • البث التلفزيوني الداخلي متاح</div>
+      <h1 id="welcomeHeadline">مرحباً بكم في مساكن النزهة</h1>
+      <p class="lead" id="welcomeDesc">
+        نتمنى لكم إقامة هادئة ومريحة. لا يزال بإمكانكم الاستمتاع بالقنوات التلفزيونية المباشرة بالضغط على السهم للأسفل (▼) أو زر OK.
+      </p>
+
+      <div class="info-row">
+        <div class="info-card">
+          <div class="info-label" id="lblWifi">شبكة الواي فاي (Wi-Fi)</div>
+          <div class="info-val" id="valWifi">Masaken_Guest</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label" id="lblPass">كلمة مرور الواي فاي</div>
+          <div class="info-val" id="valPass">Masaken@2026</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label" id="lblRec">تحويلة الاستقبال</div>
+          <div class="info-val" id="valRec">0 / 100</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="btn-row">
+        <button type="button" class="btn is-focused" id="btnLiveTv">القنوات المباشرة (▼)</button>
+        <button type="button" class="btn" id="btnRetry">إعادة الاتصال بالبوابة</button>
+        <button type="button" class="btn" id="btnLang">English</button>
+      </div>
+      <div class="hint" id="remoteHint">تنقّل: ◄ ► • تنفيذ: OK • القنوات مباشرة: ▼</div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(window.location.search);
+  var mode = (q.get('mode') || '').toLowerCase();
+  var room = (q.get('room') || '').trim();
+  var isLobby = mode === 'lobby';
+  var lang = (q.get('lang') || 'ar').toLowerCase() === 'en' ? 'en' : 'ar';
+
+  var btns = [
+    document.getElementById('btnLiveTv'),
+    document.getElementById('btnRetry'),
+    document.getElementById('btnLang')
+  ];
+  var focusIdx = 0;
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function updateClock() {
+    var now = new Date();
+    document.getElementById('clockTime').innerText = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  }
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    if (lang === 'en') {
+      document.getElementById('brandTitle').innerText = 'MASAKEN AL-NUZHA';
+      document.getElementById('clockDate').innerText = 'Jeddah • Saudi Arabia';
+      document.getElementById('offlineTag').innerText = 'Offline Backup Mode • Local Live TV Available';
+      document.getElementById('welcomeHeadline').innerText = isLobby ? 'Welcome to Masaken Al-Nuzha Lobby' : 'Welcome to Masaken Al-Nuzha';
+      document.getElementById('welcomeDesc').innerText = 'We wish you a pleasant stay. You can continue watching Live TV channels anytime by pressing Down (▼) or OK.';
+      document.getElementById('lblWifi').innerText = 'Wi-Fi Network';
+      document.getElementById('lblPass').innerText = 'Wi-Fi Password';
+      document.getElementById('lblRec').innerText = 'Reception Ext.';
+      document.getElementById('btnLiveTv').innerText = 'Watch Live TV (▼)';
+      document.getElementById('btnRetry').innerText = 'Retry Online Portal';
+      document.getElementById('btnLang').innerText = 'العربية';
+      document.getElementById('remoteHint').innerText = 'Navigate: ◄ ► • Select: OK • Live TV: ▼';
+      document.getElementById('roomBadge').innerText = isLobby ? 'Lobby Lounge' : (room ? ('Room ' + room) : 'Guest TV');
+    } else {
+      document.getElementById('brandTitle').innerText = 'مساكن النزهة';
+      document.getElementById('clockDate').innerText = 'جدة • المملكة العربية السعودية';
+      document.getElementById('offlineTag').innerText = 'الوضع المحلي الاحتياطي • البث التلفزيوني الداخلي متاح';
+      document.getElementById('welcomeHeadline').innerText = isLobby ? 'أهلاً بكم في صالة مساكن النزهة' : 'مرحباً بكم في مساكن النزهة';
+      document.getElementById('welcomeDesc').innerText = 'نتمنى لكم إقامة هادئة ومريحة. يمكنكم مشاهدة القنوات التلفزيونية المباشرة بالضغط على السهم للأسفل (▼) أو OK.';
+      document.getElementById('lblWifi').innerText = 'شبكة الواي فاي (Wi-Fi)';
+      document.getElementById('lblPass').innerText = 'كلمة مرور الواي فاي';
+      document.getElementById('lblRec').innerText = 'تحويلة الاستقبال';
+      document.getElementById('btnLiveTv').innerText = 'القنوات المباشرة (▼)';
+      document.getElementById('btnRetry').innerText = 'إعادة الاتصال بالبوابة';
+      document.getElementById('btnLang').innerText = 'English';
+      document.getElementById('remoteHint').innerText = 'تنقّل: ◄ ► • تنفيذ: OK • القنوات مباشرة: ▼';
+      document.getElementById('roomBadge').innerText = isLobby ? 'صالة الضيوف' : (room ? ('غرفة ' + room) : 'شاشة الضيوف');
+    }
+  }
+
+  function updateFocus() {
+    for (var i = 0; i < btns.length; i++) {
+      if (i === focusIdx) {
+        btns[i].classList.add('is-focused');
+        btns[i].focus();
+      } else {
+        btns[i].classList.remove('is-focused');
+      }
+    }
+  }
+
+  function openLiveTv() {
+    if (window.TVIP && typeof window.TVIP.openLiveTv === 'function') {
+      window.TVIP.openLiveTv();
+    } else {
+      window.location.href = 'tvip://tv';
+    }
+  }
+
+  function retryPortal() {
+    if (window.TVIP && typeof window.TVIP.reloadPortal === 'function') {
+      window.TVIP.reloadPortal();
+    } else {
+      window.location.href = 'tvip://reload';
+    }
+  }
+
+  function activateFocused() {
+    if (focusIdx === 0) openLiveTv();
+    else if (focusIdx === 1) retryPortal();
+    else if (focusIdx === 2) {
+      lang = lang === 'ar' ? 'en' : 'ar';
+      applyLang();
+    }
+  }
+
+  document.getElementById('btnLiveTv').addEventListener('click', openLiveTv);
+  document.getElementById('btnRetry').addEventListener('click', retryPortal);
+  document.getElementById('btnLang').addEventListener('click', function () {
+    lang = lang === 'ar' ? 'en' : 'ar';
+    applyLang();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var kc = e.keyCode || e.which || 0;
+    var rtl = lang === 'ar';
+    if (e.key === 'ArrowLeft' || kc === 21 || kc === 37) {
+      e.preventDefault();
+      focusIdx = (focusIdx + (rtl ? 1 : -1) + btns.length) % btns.length;
+      updateFocus();
+    } else if (e.key === 'ArrowRight' || kc === 22 || kc === 39) {
+      e.preventDefault();
+      focusIdx = (focusIdx + (rtl ? -1 : 1) + btns.length) % btns.length;
+      updateFocus();
+    } else if (e.key === 'Enter' || e.key === 'OK' || e.key === 'Select' || kc === 23 || kc === 66) {
+      e.preventDefault();
+      activateFocused();
+    }
+  });
+
+  try {
+    if (window.TVIP && typeof window.TVIP.setDpadDownBlocked === 'function') {
+      window.TVIP.setDpadDownBlocked(false);
+    }
+  } catch (e) {}
+
+  applyLang();
+  updateClock();
+  updateFocus();
+  setInterval(updateClock, 15000);
+})();
+</script>
+</body>
+</html>

@@ -3,14 +3,15 @@
     android:id="@+id/category_title"
     android:layout_width="match_parent"
     android:layout_height="48dp"
-    android:background="?attr/selectableItemBackground"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_category_item"
     android:ellipsize="end"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="false"
     android:gravity="center_vertical"
     android:maxLines="1"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
-    android:textColor="#FFFFFF"
-    android:textSize="14sp" />
-
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:textColor="#EAF0FF"
+    android:textSize="15sp"
+    android:textStyle="bold" />

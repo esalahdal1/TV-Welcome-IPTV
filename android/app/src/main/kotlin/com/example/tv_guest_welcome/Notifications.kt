@@ -30,6 +30,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 import java.util.WeakHashMap
 import java.util.concurrent.TimeUnit
@@ -39,7 +43,7 @@ object Notifications {
     private const val SUPABASE_KEY = "sb_publishable_V5a3JRO2UI371xQ-9MwT8w_J_8XT8Cm"
 
     private const val NOTIF_PREFS = "NOTIF_PREFS"
-    private const val KEY_LAST_SEEN = "last_seen_created_at"
+    private const val KEY_LAST_SEEN_PREFIX = "last_seen_created_at_"
     private const val KEY_DEFERRED = "deferred_json"
 
     private const val CHANNEL_ID = "masaken_notifications"
@@ -163,18 +167,65 @@ object Notifications {
     }
 
     private fun readRoomNumber(context: Context): String? {
-        val prefs = context.getSharedPreferences("TV_PREFS", Context.MODE_PRIVATE)
-        return prefs.getString("room_number", null)?.trim()?.takeIf { it.isNotEmpty() }
+        val prefs = context.getSharedPreferences(SetupActivity.PREFS_TV, Context.MODE_PRIVATE)
+        val mode = prefs.getString(SetupActivity.KEY_APP_MODE, SetupActivity.MODE_ROOM)
+        if (mode == SetupActivity.MODE_LOBBY) return null
+        return prefs.getString(SetupActivity.KEY_ROOM_NUMBER, null)?.trim()?.takeIf { it.isNotEmpty() }
     }
 
-    private fun getLastSeen(context: Context): String? {
-        val prefs = context.getSharedPreferences(NOTIF_PREFS, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_LAST_SEEN, null)?.trim()?.takeIf { it.isNotEmpty() }
+    private fun lastSeenKey(roomNumber: String?): String {
+        return KEY_LAST_SEEN_PREFIX + (roomNumber ?: "LOBBY")
     }
 
-    private fun setLastSeen(context: Context, createdAt: String) {
+    private fun getLastSeen(context: Context, roomNumber: String?): String? {
         val prefs = context.getSharedPreferences(NOTIF_PREFS, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_LAST_SEEN, createdAt).apply()
+        val scoped = prefs.getString(lastSeenKey(roomNumber), null)?.trim()?.takeIf { it.isNotEmpty() }
+        if (scoped != null) return scoped
+        return prefs.getString("last_seen_created_at", null)?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun setLastSeen(context: Context, roomNumber: String?, createdAt: String) {
+        val prefs = context.getSharedPreferences(NOTIF_PREFS, Context.MODE_PRIVATE)
+        prefs.edit().putString(lastSeenKey(roomNumber), createdAt).apply()
+    }
+
+    private fun currentIsoUtc(): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        return sdf.format(Date())
+    }
+
+    private fun fetchLatestAnchor(roomNumber: String?): String? {
+        val base = "$SUPABASE_URL/rest/v1/tv_notifications".toHttpUrl().newBuilder()
+        base.addQueryParameter("select", "created_at")
+        if (roomNumber.isNullOrEmpty()) {
+            base.addQueryParameter("room_number", "is.null")
+        } else {
+            base.addQueryParameter("or", "(room_number.is.null,room_number.eq.$roomNumber)")
+        }
+        base.addQueryParameter("order", "created_at.desc")
+        base.addQueryParameter("limit", "1")
+        val url = base.build()
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("apikey", SUPABASE_KEY)
+            .addHeader("Authorization", "Bearer $SUPABASE_KEY")
+            .build()
+
+        return runCatching {
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) return@use null
+                val body = resp.body?.string().orEmpty()
+                val arr = JSONArray(body)
+                if (arr.length() > 0) {
+                    arr.optJSONObject(0)?.optString("created_at", "")?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: currentIsoUtc()
+                } else {
+                    currentIsoUtc()
+                }
+            }
+        }.getOrNull()
     }
 
     private fun loadDeferred(context: Context): JSONArray {
@@ -193,7 +244,7 @@ object Notifications {
         return pm.isInteractive
     }
 
-    private fun fetchNew(context: Context, roomNumber: String?, lastSeen: String?): List<JSONObject> {
+    private fun fetchNew(roomNumber: String?, lastSeen: String?): List<JSONObject> {
         val base = "$SUPABASE_URL/rest/v1/tv_notifications".toHttpUrl().newBuilder()
         base.addQueryParameter("select", "id,room_number,message,created_at")
         if (roomNumber.isNullOrEmpty()) {
@@ -281,17 +332,23 @@ object Notifications {
         val nowMs = System.currentTimeMillis()
         processDeferred(context, nowMs)
 
-        val lastSeen = getLastSeen(context)
-        val items = fetchNew(context, room, lastSeen)
+        val lastSeen = getLastSeen(context, room)
+        if (lastSeen.isNullOrEmpty()) {
+            val anchor = fetchLatestAnchor(room) ?: return
+            setLastSeen(context, room, anchor)
+            return
+        }
+
+        val items = fetchNew(room, lastSeen)
         if (items.isEmpty()) return
 
-        var maxCreatedAt: String? = lastSeen
+        var maxCreatedAt: String = lastSeen
         val interactive = isInteractive(context)
         for (o in items) {
             val message = o.optString("message", "").trim()
             val createdAt = o.optString("created_at", "").trim()
             if (message.isEmpty() || createdAt.isEmpty()) continue
-            maxCreatedAt = createdAt
+            if (createdAt > maxCreatedAt) maxCreatedAt = createdAt
 
             if (!interactive) {
                 deferMessage(context, message, nowMs + DEFER_MS)
@@ -300,8 +357,8 @@ object Notifications {
             }
         }
 
-        if (!maxCreatedAt.isNullOrEmpty()) {
-            setLastSeen(context, maxCreatedAt)
+        if (maxCreatedAt != lastSeen) {
+            setLastSeen(context, room, maxCreatedAt)
         }
 
         if (!interactive) {
@@ -370,8 +427,8 @@ private object InAppBanner {
 
             val bg = GradientDrawable()
             bg.cornerRadius = 16f * decor.resources.displayMetrics.density
-            bg.setColor(Color.parseColor("#AA000000"))
-            bg.setStroke((1 * decor.resources.displayMetrics.density).toInt().coerceAtLeast(1), Color.parseColor("#33FFFFFF"))
+            bg.setColor(Color.parseColor("#E60B1426"))
+            bg.setStroke((1 * decor.resources.displayMetrics.density).toInt().coerceAtLeast(1), Color.parseColor("#80D4AF37"))
             tv.background = bg
 
             c.addView(tv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
