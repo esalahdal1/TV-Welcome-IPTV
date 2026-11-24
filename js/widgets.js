@@ -123,7 +123,52 @@
         }
     }
 
+    function readCachedWeatherFallback() {
+        try {
+            var cached = JSON.parse(global.localStorage.getItem('LAST_WEATHER_V2') || 'null');
+            if (cached && cached.temp != null) {
+                lastWeatherTemp = cached.temp;
+                lastWeatherCode = cached.code;
+            }
+        } catch (e2) {}
+    }
+
+    async function syncWidgetsFromServer() {
+        var db = TVApp.db;
+        if (!db || typeof db.fetchServerWidgets !== 'function') return false;
+        var srv = await db.fetchServerWidgets();
+        if (!srv) return !!(db.isLocalMode && db.isLocalMode());
+
+        if (srv.weather && srv.weather.temperature_2m != null) {
+            lastWeatherTemp = srv.weather.temperature_2m;
+            lastWeatherCode = srv.weather.weather_code;
+            try {
+                global.localStorage.setItem('LAST_WEATHER_V2', JSON.stringify({
+                    temp: lastWeatherTemp,
+                    code: lastWeatherCode,
+                    ts: Date.now()
+                }));
+            } catch (e) {}
+        } else {
+            readCachedWeatherFallback();
+        }
+        renderWeather();
+
+        if (srv.prayers) {
+            cachedPrayers = srv.prayers;
+            try {
+                global.localStorage.setItem('PRAYER_CACHE', JSON.stringify({
+                    date: srv.date || '',
+                    timings: cachedPrayers
+                }));
+            } catch (e2) {}
+            renderPrayers();
+        }
+        return true;
+    }
+
     async function fetchWeather() {
+        if (await syncWidgetsFromServer()) return;
         var h = cfg.HOTEL_DEFAULTS;
         var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + h.lat + '&longitude=' + h.lon + '&current=temperature_2m,weather_code&timezone=Asia%2FRiyadh';
         try {
@@ -141,13 +186,7 @@
                 } catch (e) {}
             }
         } catch (err) {
-            try {
-                var cached = JSON.parse(global.localStorage.getItem('LAST_WEATHER_V2') || 'null');
-                if (cached && cached.temp != null) {
-                    lastWeatherTemp = cached.temp;
-                    lastWeatherCode = cached.code;
-                }
-            } catch (e2) {}
+            readCachedWeatherFallback();
         }
         renderWeather();
     }
@@ -246,6 +285,8 @@
     }
 
     async function fetchPrayers() {
+        if (await syncWidgetsFromServer()) return;
+
         var todayKey = '';
         try {
             todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());

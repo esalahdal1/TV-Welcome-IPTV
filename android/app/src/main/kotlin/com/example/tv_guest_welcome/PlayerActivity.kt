@@ -198,6 +198,12 @@ class PlayerActivity : AppCompatActivity() {
         val url = item.streamUrl
         val name = item.name.ifEmpty { "قناة" }
 
+        val cleanPath = url.substringBefore('?').lowercase(Locale.US)
+        val isLoopedVideo = url.contains("/api/channel1/", ignoreCase = true) ||
+            cleanPath.endsWith(".mp4") || cleanPath.endsWith(".mov") ||
+            cleanPath.endsWith(".webm") || cleanPath.endsWith(".m4v")
+        player?.repeatMode = if (isLoopedVideo) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+
         val mediaItem = MediaItem.fromUri(url)
         player?.setMediaItem(mediaItem)
         player?.prepare()
@@ -250,7 +256,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun markBadUrl(url: String?) {
         val safe = url?.trim().orEmpty()
-        if (safe.isEmpty()) return
+        if (safe.isEmpty() || safe.contains("/api/channel1/", ignoreCase = true)) return
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val existing = prefs.getStringSet(PREF_BAD_URLS, emptySet()).orEmpty()
         if (existing.contains(safe)) return

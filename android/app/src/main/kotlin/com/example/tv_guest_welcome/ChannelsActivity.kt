@@ -70,8 +70,8 @@ class ChannelsActivity : AppCompatActivity() {
 
         imageLoader = ImageLoader()
 
-        val prefs = getSharedPreferences("IPTV_PREFS", Context.MODE_PRIVATE)
-        val playlistUrl = prefs.getString("m3u_url", null)?.trim().orEmpty().ifEmpty { IptvDefaults.DEFAULT_M3U_URL }
+        val playlistUrl = IptvDefaults.resolvePlaylistUrl(this)
+        val forceLocal = playlistUrl.contains("/api/channels.m3u", ignoreCase = true)
         repository = IptvRepository(this, M3uIptvProvider(playlistUrl))
 
         categoryAdapter = CategoryAdapter { category ->
@@ -151,7 +151,7 @@ class ChannelsActivity : AppCompatActivity() {
         }
 
         refreshButton.setOnClickListener { load(forceRefresh = true) }
-        load(forceRefresh = false)
+        load(forceRefresh = forceLocal)
     }
 
     override fun onDestroy() {

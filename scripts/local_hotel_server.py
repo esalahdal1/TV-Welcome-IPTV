@@ -9,6 +9,7 @@ hotel settings, staff authentication, and local WebRTC signaling.
 import hashlib
 import http.server
 import json
+import math
 import os
 import random
 import re
@@ -18,25 +19,40 @@ import tempfile
 import threading
 import time
 import urllib.parse
+import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "local_hotel_db.json")
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SCRIPTS_DIR, "local_hotel_db.json")
+WIDGETS_CACHE_PATH = os.path.join(SCRIPTS_DIR, "widgets_cache.json")
+CACHED_M3U_PATH = os.path.join(SCRIPTS_DIR, "cached_channels.m3u")
+CHANNEL1_DIR = os.path.join(SCRIPTS_DIR, "channel1_media")
 MEDIA_DIR = os.path.join(tempfile.gettempdir(), "tvip_cast_media")
 os.makedirs(MEDIA_DIR, exist_ok=True)
+os.makedirs(CHANNEL1_DIR, exist_ok=True)
 
+DEFAULT_UPSTREAM_M3U = "https://iptv-org.github.io/iptv/index.m3u"
 DEFAULT_SETTINGS = {
     "wifi_name": "Masaken_Guest",
     "wifi_pass": "Masaken@2026",
     "reception_ext": "0 / 100",
     "breakfast_hours": "07:00 - 10:30",
     "checkout_time": "14:00",
+    "iptv_m3u_url": "",
 }
 
-BLOCKED_PREFIXES = (".git/", "mvp/", "scripts/local_hotel_db.json")
+BLOCKED_PREFIXES = (
+    ".git/",
+    "mvp/",
+    "scripts/local_hotel_db.json",
+    "scripts/widgets_cache.json",
+    "scripts/channel1_media/",
+)
 PUBLIC_URL = str(os.environ.get("TVIP_PUBLIC_URL") or "").strip().rstrip("/")
 MAX_MEDIA_BYTES = 150 * 1024 * 1024
+MAX_CHANNEL1_BYTES = 500 * 1024 * 1024
 ALLOWED_MEDIA_MIME = {
     "image/jpeg": ("image", ".jpg"),
     "image/jpg": ("image", ".jpg"),
@@ -67,6 +83,188 @@ rtc_seq = 0
 media_lock = threading.Lock()
 media_cast_state = {}
 media_seq = 0
+widgets_lock = threading.Lock()
+RIYADH_TZ = timezone(timedelta(hours=3))
+
+
+def riyadh_today():
+    now = datetime.now(RIYADH_TZ)
+    return now.year, now.month, now.day, now.strftime("%Y-%m-%d")
+
+
+def compute_jeddah_prayers(y: int, m: int, d: int, lat: float = 21.5433, lon: float = 39.1728, tz: float = 3.0) -> dict:
+    """Compute Jeddah Umm al-Qura prayer timings offline as an exact local fallback."""
+    yy, mm = y, m
+    if mm <= 2:
+        yy -= 1
+        mm += 12
+    a_term = yy // 100
+    b_term = 2 - a_term + a_term // 4
+    jd = int(365.25 * (yy + 4716)) + int(30.6001 * (mm + 1)) + d + b_term - 1524.5
+    d_ep = jd - 2451545.0
+    g = math.radians((357.529 + 0.98560028 * d_ep) % 360.0)
+    q = (280.459 + 0.98564736 * d_ep) % 360.0
+    l_sun = math.radians((q + 1.915 * math.sin(g) + 0.020 * math.sin(2 * g)) % 360.0)
+    e = math.radians(23.439 - 0.00000036 * d_ep)
+    ra = (math.degrees(math.atan2(math.cos(e) * math.sin(l_sun), math.cos(l_sun))) / 15.0) % 24.0
+    eqt = q / 15.0 - ra
+    if eqt > 12:
+        eqt -= 24.0
+    elif eqt < -12:
+        eqt += 24.0
+    decl = math.asin(math.sin(e) * math.sin(l_sun))
+    lat_r = math.radians(lat)
+    dhuhr = 12.0 + tz - lon / 15.0 - eqt
+
+    def ha(angle_deg: float) -> float:
+        val = (-math.sin(math.radians(angle_deg)) - math.sin(lat_r) * math.sin(decl)) / (
+            math.cos(lat_r) * math.cos(decl)
+        )
+        val = max(-1.0, min(1.0, val))
+        return math.degrees(math.acos(val)) / 15.0
+
+    fajr = dhuhr - ha(18.5)
+    asr_alt = math.degrees(math.atan(1.0 / (1.0 + math.tan(abs(lat_r - decl)))))
+    asr = dhuhr + ha(-asr_alt)
+    maghrib = dhuhr + ha(0.8333)
+    isha = maghrib + 1.5
+
+    def fmt(hours: float) -> str:
+        tot = int(round(hours * 60)) % 1440
+        return f"{tot // 60:02d}:{tot % 60:02d}"
+
+    return {
+        "Fajr": fmt(fajr),
+        "Dhuhr": fmt(dhuhr),
+        "Asr": fmt(asr),
+        "Maghrib": fmt(maghrib),
+        "Isha": fmt(isha),
+    }
+
+
+def load_widgets_cache() -> dict:
+    if not os.path.exists(WIDGETS_CACHE_PATH):
+        return {"prayers_by_date": {}, "weather": None, "m3u_synced_at": 0}
+    try:
+        with open(WIDGETS_CACHE_PATH, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            raise ValueError("invalid widgets cache")
+        raw.setdefault("prayers_by_date", {})
+        raw.setdefault("weather", None)
+        raw.setdefault("m3u_synced_at", 0)
+        return raw
+    except Exception:
+        return {"prayers_by_date": {}, "weather": None, "m3u_synced_at": 0}
+
+
+def save_widgets_cache(cache: dict) -> None:
+    tmp = WIDGETS_CACHE_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, WIDGETS_CACHE_PATH)
+
+
+def http_fetch_bytes(url: str, timeout: int = 8) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "MasakenHotelServer/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read()
+
+
+def sync_server_caches_once(force_m3u: bool = False) -> None:
+    """Refresh server-cached prayer calendar, weather, and IPTV M3U when internet is reachable."""
+    y, m, _d, today_str = riyadh_today()
+    with widgets_lock:
+        cache = load_widgets_cache()
+
+    prayers_map = cache.get("prayers_by_date") or {}
+    # Prune stale prayer dates older than 3 days before syncing
+    cutoff = (datetime.now(RIYADH_TZ) - timedelta(days=3)).strftime("%Y-%m-%d")
+    prayers_map = {k: v for k, v in prayers_map.items() if k >= cutoff}
+    need_next_month = (datetime.now(RIYADH_TZ) + timedelta(days=7)).month != m
+    if today_str not in prayers_map or len(prayers_map) < 15 or need_next_month:
+        months = [(y, m)]
+        ny, nm = (y + 1, 1) if m == 12 else (y, m + 1)
+        months.append((ny, nm))
+        for (yy, mm) in months:
+            try:
+                url = (
+                    f"https://api.aladhan.com/v1/calendarByCity/{yy}/{mm}"
+                    "?city=Jeddah&country=Saudi%20Arabia&method=4"
+                )
+                doc = json.loads(http_fetch_bytes(url, timeout=8).decode("utf-8"))
+                for item in doc.get("data") or []:
+                    g_date = ((item.get("date") or {}).get("gregorian") or {}).get("date") or ""
+                    timings = item.get("timings") or {}
+                    if "-" in g_date and len(g_date.split("-")) == 3:
+                        dd_s, mm_s, yy_s = g_date.split("-")
+                        iso_d = f"{yy_s}-{mm_s.zfill(2)}-{dd_s.zfill(2)}"
+                        if iso_d >= cutoff and timings:
+                            prayers_map[iso_d] = {
+                                k: str(timings.get(k, "")).split(" ")[0]
+                                for k in ("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")
+                                if timings.get(k)
+                            }
+            except Exception:
+                pass
+        cache["prayers_by_date"] = prayers_map
+
+    try:
+        w_url = (
+            "https://api.open-meteo.com/v1/forecast?latitude=21.5433&longitude=39.1728"
+            "&current=temperature_2m,weather_code&timezone=Asia%2FRiyadh"
+        )
+        w_doc = json.loads(http_fetch_bytes(w_url, timeout=6).decode("utf-8"))
+        cur_w = w_doc.get("current") or {}
+        if cur_w.get("temperature_2m") is not None:
+            cache["weather"] = {
+                "temperature_2m": cur_w.get("temperature_2m"),
+                "weather_code": cur_w.get("weather_code"),
+                "updated_at": now_iso(),
+            }
+    except Exception:
+        pass
+
+    with db_lock:
+        db_data = load_db()
+        custom_m3u = str((db_data.get("hotel_settings") or {}).get("iptv_m3u_url") or "").strip()
+    target_m3u = custom_m3u or DEFAULT_UPSTREAM_M3U
+    now_ts = time.time()
+    last_m3u_sync = float(cache.get("m3u_synced_at") or 0)
+    last_m3u_url = str(cache.get("m3u_source_url") or "")
+    if target_m3u and (
+        force_m3u
+        or not os.path.exists(CACHED_M3U_PATH)
+        or target_m3u != last_m3u_url
+        or (now_ts - last_m3u_sync) > 6 * 3600
+    ):
+        try:
+            raw_m3u = http_fetch_bytes(target_m3u, timeout=15).decode("utf-8", errors="ignore")
+            if "#EXTINF" in raw_m3u or "#EXTM3U" in raw_m3u:
+                tmp_m3u = CACHED_M3U_PATH + ".tmp"
+                with open(tmp_m3u, "w", encoding="utf-8") as mf:
+                    mf.write(raw_m3u)
+                os.replace(tmp_m3u, CACHED_M3U_PATH)
+                cache["m3u_synced_at"] = now_ts
+                cache["m3u_source_url"] = target_m3u
+        except Exception:
+            pass
+
+    with widgets_lock:
+        save_widgets_cache(cache)
+
+
+def start_cache_sync_worker() -> None:
+    def worker():
+        while True:
+            try:
+                sync_server_caches_once(force_m3u=False)
+            except Exception:
+                pass
+            time.sleep(1800)
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
 
 
 def sha256_hex(text: str) -> str:
@@ -219,6 +417,12 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path == "/api/media/file":
             self.serve_media_file(urllib.parse.parse_qs(parsed.query), head_only=True)
             return
+        if parsed.path == "/api/channel1/video":
+            self.serve_channel1_video(head_only=True)
+            return
+        if parsed.path == "/api/channels.m3u":
+            self.serve_channels_m3u(head_only=True)
+            return
         super().do_HEAD()
 
     def send_json(self, code: int, payload) -> None:
@@ -265,28 +469,20 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path == "/api/media/upload":
             self.handle_media_upload(urllib.parse.parse_qs(parsed.query))
             return
+        if parsed.path == "/api/staff/channel1/upload":
+            self.handle_channel1_upload(urllib.parse.parse_qs(parsed.query))
+            return
         if not parsed.path.startswith("/api/"):
             self.send_error(405, "Method Not Allowed")
             return
         self.handle_api_post(parsed.path)
 
-    def serve_media_file(self, qs: dict, head_only: bool = False):
-        """Serve the currently active room cast media with HTTP Range (206) support."""
-        room = normalize_digits((qs.get("room") or [""])[0])
-        pin = normalize_digits((qs.get("pin") or [""])[0])
-        media_id = (qs.get("id") or [""])[0].strip()
-        if not verify_room_pin_db(room, pin):
-            self.send_json(403, {"error": {"message": "رمز الغرفة غير صحيح"}})
+    def stream_file_with_range(self, file_path: str, mime: str, head_only: bool = False):
+        """Serve a disk file with HTTP Accept-Ranges / 206 Partial Content support."""
+        if not file_path or not os.path.exists(file_path):
+            self.send_json(404, {"error": {"message": "الملف غير موجود"}})
             return
-        with media_lock:
-            entry = media_cast_state.get(room)
-        if not entry or entry.get("id") != media_id or not os.path.exists(entry.get("path", "")):
-            self.send_json(404, {"error": {"message": "لا يوجد محتوى نشط"}})
-            return
-
-        file_path = entry["path"]
         file_size = os.path.getsize(file_path)
-        mime = entry.get("mime") or "application/octet-stream"
         range_hdr = self.headers.get("Range")
         start = 0
         end = file_size - 1
@@ -313,7 +509,7 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         length = max(0, end - start + 1) if file_size > 0 else 0
         self.send_response(status)
-        self.send_header("Content-Type", mime)
+        self.send_header("Content-Type", mime or "application/octet-stream")
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(length))
         if status == 206:
@@ -335,6 +531,172 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
+    def serve_media_file(self, qs: dict, head_only: bool = False):
+        """Serve the currently active room cast media with HTTP Range (206) support."""
+        room = normalize_digits((qs.get("room") or [""])[0])
+        pin = normalize_digits((qs.get("pin") or [""])[0])
+        media_id = (qs.get("id") or [""])[0].strip()
+        if not verify_room_pin_db(room, pin):
+            self.send_json(403, {"error": {"message": "رمز الغرفة غير صحيح"}})
+            return
+        with media_lock:
+            entry = media_cast_state.get(room)
+        if not entry or entry.get("id") != media_id or not os.path.exists(entry.get("path", "")):
+            self.send_json(404, {"error": {"message": "لا يوجد محتوى نشط"}})
+            return
+        self.stream_file_with_range(entry["path"], entry.get("mime") or "application/octet-stream", head_only=head_only)
+
+    def serve_channel1_video(self, head_only: bool = False):
+        """Serve the persistent Hotel Channel 1 promotional/welcome video."""
+        with db_lock:
+            data = load_db()
+            ch1 = data.get("hotel_channel1")
+        if not ch1 or not ch1.get("path") or not os.path.exists(ch1.get("path")):
+            self.send_json(404, {"error": {"message": "لم يتم رفع فيديو القناة الأولى بعد"}})
+            return
+        self.stream_file_with_range(ch1["path"], ch1.get("mime") or "video/mp4", head_only=head_only)
+
+    def serve_channels_m3u(self, head_only: bool = False):
+        """Build #EXTM3U playlist placing Hotel Channel #1 permanently first, then cached IPTV."""
+        host = (self.headers.get("Host") or "127.0.0.1:8899").strip()
+        proto = (self.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip()
+        base = f"{proto}://{host}"
+        with db_lock:
+            data = load_db()
+            ch1 = data.get("hotel_channel1")
+
+        lines = ["#EXTM3U"]
+        if ch1 and ch1.get("path") and os.path.exists(ch1.get("path")):
+            title = str(ch1.get("title") or "مساكن النزهة — القناة الترحيبية").replace("\n", " ").replace("\r", " ").strip()
+            ver = int(ch1.get("version") or 1)
+            lines.append(f'#EXTINF:-1 tvg-id="masaken-ch1" group-title="الفندق",{title}')
+            lines.append(f"{base}/api/channel1/video?v={ver}")
+
+        if os.path.exists(CACHED_M3U_PATH):
+            try:
+                with open(CACHED_M3U_PATH, "r", encoding="utf-8", errors="ignore") as f:
+                    for raw_line in f:
+                        s = raw_line.rstrip("\r\n")
+                        if not s or s.strip().upper().startswith("#EXTM3U"):
+                            continue
+                        lines.append(s)
+            except OSError:
+                pass
+
+        raw = ("\n".join(lines) + "\n").encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "audio/x-mpegurl; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(raw)
+
+    def read_binary_upload(self, max_bytes: int):
+        """Validate Content-Length and return (length, ok) or send an error response."""
+        try:
+            length = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            length = 0
+        if length <= 0 or length > max_bytes:
+            mb = max_bytes // (1024 * 1024)
+            self.send_json(400, {"error": {"message": f"حجم الملف غير مسموح (الحد الأقصى {mb} ميجابايت)"}})
+            return 0, False
+        return length, True
+
+    def write_request_body_to_file(self, dest_path: str, length: int) -> bool:
+        """Stream exactly length bytes from self.rfile to dest_path."""
+        try:
+            remaining = length
+            written = 0
+            with open(dest_path, "wb") as out:
+                while remaining > 0:
+                    chunk = self.rfile.read(min(65536, remaining))
+                    if not chunk:
+                        break
+                    out.write(chunk)
+                    written += len(chunk)
+                    remaining -= len(chunk)
+            if written != length:
+                try:
+                    os.unlink(dest_path)
+                except OSError:
+                    pass
+                self.send_json(400, {"error": {"message": "انقطع رفع الملف قبل اكتماله"}})
+                return False
+            return True
+        except Exception:
+            try:
+                if os.path.exists(dest_path):
+                    os.unlink(dest_path)
+            except OSError:
+                pass
+            self.send_json(500, {"error": {"message": "تعذر حفظ الملف على السيرفر"}})
+            return False
+
+    def handle_channel1_upload(self, qs: dict):
+        """Upload persistent Hotel Welcome Video locked permanently as Channel #1."""
+        pin = normalize_digits((qs.get("pin") or [""])[0])
+        with db_lock:
+            data = load_db()
+            if not self.verify_staff(data, pin):
+                self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                return
+
+        length, ok = self.read_binary_upload(MAX_CHANNEL1_BYTES)
+        if not ok:
+            return
+
+        raw_name = urllib.parse.unquote((qs.get("name") or [self.headers.get("X-File-Name") or "welcome.mp4"])[0]).strip()
+        filename = os.path.basename(raw_name)[:80] or "welcome.mp4"
+        title = urllib.parse.unquote((qs.get("title") or ["مساكن النزهة — القناة الترحيبية"])[0]).strip()[:80]
+        if not title:
+            title = "مساكن النزهة — القناة الترحيبية"
+        raw_ct = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        ext = os.path.splitext(filename)[1].lower()
+        if raw_ct in ALLOWED_MEDIA_MIME and ALLOWED_MEDIA_MIME[raw_ct][0] == "video":
+            suffix = ALLOWED_MEDIA_MIME[raw_ct][1]
+            mime = raw_ct
+        elif ext in ALLOWED_EXT_TO_MIME and ALLOWED_EXT_TO_MIME[ext][0] == "video":
+            suffix = ext
+            mime = ALLOWED_EXT_TO_MIME[ext][1]
+        else:
+            self.send_json(415, {"error": {"message": "يرجى اختيار ملف فيديو صالح للقناة (MP4 / MOV / WebM)"}})
+            return
+
+        tok = uuid.uuid4().hex[:12]
+        dest_path = os.path.join(CHANNEL1_DIR, f"channel1_{tok}{suffix}")
+        if not self.write_request_body_to_file(dest_path, length):
+            return
+
+        with db_lock:
+            data = load_db()
+            prev = data.get("hotel_channel1") or {}
+            ver = int(prev.get("version") or 0) + 1
+            entry = {
+                "title": title,
+                "group": "الفندق",
+                "filename": filename,
+                "mime": mime,
+                "size": length,
+                "version": ver,
+                "path": dest_path,
+                "updated_at": now_iso(),
+            }
+            data["hotel_channel1"] = entry
+            save_db(data)
+
+        old_path = prev.get("path")
+        if old_path and old_path != dest_path:
+            try:
+                if os.path.exists(old_path):
+                    os.unlink(old_path)
+            except OSError:
+                pass
+
+        info = {k: v for k, v in entry.items() if k != "path"}
+        info["url"] = f"/api/channel1/video?v={ver}"
+        self.send_json(200, {"ok": True, "active": True, "channel": info})
+
     def handle_media_upload(self, qs: dict):
         """Stream an uploaded photo or video from a verified room guest to temp storage."""
         global media_seq
@@ -344,12 +706,8 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(403, {"error": {"message": "رمز الغرفة غير صحيح أو انتهت الجلسة"}})
             return
 
-        try:
-            length = int(self.headers.get("Content-Length") or "0")
-        except ValueError:
-            length = 0
-        if length <= 0 or length > MAX_MEDIA_BYTES:
-            self.send_json(400, {"error": {"message": "حجم الملف غير مسموح (الحد الأقصى 150 ميجابايت)"}})
+        length, ok = self.read_binary_upload(MAX_MEDIA_BYTES)
+        if not ok:
             return
 
         raw_name = urllib.parse.unquote((qs.get("name") or [self.headers.get("X-File-Name") or "media"])[0]).strip()
@@ -369,31 +727,7 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         tok = uuid.uuid4().hex[:16]
         dest_path = os.path.join(MEDIA_DIR, f"room_{room}_{tok}{suffix}")
-        try:
-            remaining = length
-            written = 0
-            with open(dest_path, "wb") as out:
-                while remaining > 0:
-                    chunk = self.rfile.read(min(65536, remaining))
-                    if not chunk:
-                        break
-                    out.write(chunk)
-                    written += len(chunk)
-                    remaining -= len(chunk)
-            if written != length:
-                try:
-                    os.unlink(dest_path)
-                except OSError:
-                    pass
-                self.send_json(400, {"error": {"message": "انقطع رفع الملف قبل اكتماله"}})
-                return
-        except Exception:
-            try:
-                if os.path.exists(dest_path):
-                    os.unlink(dest_path)
-            except OSError:
-                pass
-            self.send_json(500, {"error": {"message": "تعذر حفظ الملف على السيرفر"}})
+        if not self.write_request_body_to_file(dest_path, length):
             return
 
         with media_lock:
@@ -406,7 +740,7 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "kind": kind,
                 "mime": mime,
                 "filename": filename,
-                "size": written,
+                "size": length,
                 "version": ver,
                 "paused": False,
                 "muted": False,
@@ -504,6 +838,49 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
                 matched = [{"seq": s, "payload": p} for (s, p) in items if s > after]
                 last_seq = items[-1][0] if items else after
             self.send_json(200, {"messages": matched, "lastSeq": last_seq})
+            return
+
+        if path == "/api/widgets":
+            y, m, d, today_str = riyadh_today()
+            with widgets_lock:
+                cache = load_widgets_cache()
+            p_map = cache.get("prayers_by_date") or {}
+            cached_today = p_map.get(today_str)
+            if cached_today and all(k in cached_today for k in ("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha")):
+                prayers = cached_today
+                prayers_source = "aladhan_cache"
+            else:
+                prayers = compute_jeddah_prayers(y, m, d)
+                prayers_source = "umm_alqura_math"
+            self.send_json(
+                200,
+                {
+                    "date": today_str,
+                    "prayers": prayers,
+                    "prayers_source": prayers_source,
+                    "weather": cache.get("weather"),
+                },
+            )
+            return
+
+        if path == "/api/channel1/info":
+            with db_lock:
+                data = load_db()
+                ch1 = data.get("hotel_channel1")
+            if not ch1 or not ch1.get("path") or not os.path.exists(ch1.get("path")):
+                self.send_json(200, {"active": False, "channel": None})
+                return
+            info = {k: v for k, v in ch1.items() if k != "path"}
+            info["url"] = f"/api/channel1/video?v={int(ch1.get('version') or 1)}"
+            self.send_json(200, {"active": True, "channel": info})
+            return
+
+        if path == "/api/channel1/video":
+            self.serve_channel1_video(head_only=False)
+            return
+
+        if path == "/api/channels.m3u":
+            self.serve_channels_m3u(head_only=False)
             return
 
         if path == "/api/media/current":
@@ -763,11 +1140,55 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
                     return
                 cur = data.setdefault("hotel_settings", dict(DEFAULT_SETTINGS))
                 for k in DEFAULT_SETTINGS:
+                    if k not in settings:
+                        continue
                     val = str(settings.get(k) or "").strip()
-                    if val:
+                    if k == "iptv_m3u_url":
+                        cur[k] = val
+                    elif val:
                         cur[k] = val
                 save_db(data)
+            if "iptv_m3u_url" in settings:
+                threading.Thread(target=sync_server_caches_once, kwargs={"force_m3u": True}, daemon=True).start()
             self.send_json(200, {"error": None})
+            return
+
+        if path == "/api/staff/channel1/meta":
+            pin = normalize_digits(body.get("pin"))
+            title = str(body.get("title") or "").strip()[:80]
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                ch1 = data.get("hotel_channel1")
+                if not ch1 or not ch1.get("path") or not os.path.exists(ch1.get("path")):
+                    self.send_json(404, {"error": {"message": "لا يوجد فيديو مثبّت حالياً"}})
+                    return
+                if title:
+                    ch1["title"] = title
+                    ch1["updated_at"] = now_iso()
+                    save_db(data)
+                info = {k: v for k, v in ch1.items() if k != "path"}
+                info["url"] = f"/api/channel1/video?v={int(ch1.get('version') or 1)}"
+            self.send_json(200, {"ok": True, "active": True, "channel": info})
+            return
+
+        if path == "/api/staff/channel1/delete":
+            pin = normalize_digits(body.get("pin"))
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                prev = data.pop("hotel_channel1", None)
+                save_db(data)
+            if prev and prev.get("path") and os.path.exists(prev.get("path")):
+                try:
+                    os.unlink(prev["path"])
+                except OSError:
+                    pass
+            self.send_json(200, {"ok": True, "active": False, "channel": None})
             return
 
         if path == "/api/staff/change-pin":
@@ -786,22 +1207,6 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(200, {"error": None})
             return
 
-        if path == "/api/media/current":
-            room = normalize_digits((qs.get("room") or [""])[0])
-            pin = normalize_digits((qs.get("pin") or [""])[0])
-            if not verify_room_pin_db(room, pin):
-                self.send_json(403, {"active": False, "media": None})
-                return
-            with media_lock:
-                entry = media_cast_state.get(room)
-                meta = public_media_meta(entry, pin) if entry and os.path.exists(entry.get("path", "")) else None
-            self.send_json(200, {"active": bool(meta), "media": meta})
-            return
-
-        if path == "/api/media/file":
-            self.serve_media_file(qs, head_only=False)
-            return
-
         self.send_json(404, {"error": {"message": "Endpoint not found"}})
 
 
@@ -816,6 +1221,7 @@ def main():
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, shutdown_handler)
+    start_cache_sync_worker()
     server = http.server.ThreadingHTTPServer((bind_host, port), HotelRequestHandler)
     print(f"Masaken Al-Nuzha Local Server running on http://{bind_host}:{port}/", flush=True)
     if PUBLIC_URL:

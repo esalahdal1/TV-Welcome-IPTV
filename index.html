@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مساكن النزهة - ترحيب النزلاء</title>
     <link rel="icon" href="3%20small.png">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="css/app.css?v=35">
+    <script src="vendor/qrcode/qrcode.min.js?v=36"></script>
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=36">
+    <link rel="stylesheet" href="css/app.css?v=36">
 </head>
 <body>
     <div class="animated-bg"></div>
@@ -329,6 +328,7 @@
                         <span id="staffPendingBadge" class="staff-count-badge" style="display:none">0</span>
                     </button>
                     <button type="button" class="tab-btn" data-staff-tab="notifications">الإشعارات</button>
+                    <button type="button" class="tab-btn" data-staff-tab="channel1">قناة الفندق #1</button>
                     <button type="button" class="tab-btn" data-staff-tab="settings">إعدادات الفندق والأمان</button>
                 </div>
 
@@ -365,7 +365,41 @@
                     <div id="staffNotifFeed" class="staff-scroll-box"></div>
                 </div>
 
-                <!-- Pane 4: Settings & Staff PIN -->
+                <!-- Pane 4: Persistent Hotel Channel 1 Video -->
+                <div class="staff-pane" data-staff-pane="channel1" style="display:none">
+                    <div class="staff-subcard">
+                        <div class="admin-modal-title">فيديو الفندق الترحيبي الدائم — القناة رقم 1</div>
+                        <p class="staff-section-note">يرفع هذا الفيديو ويُثبّت داخل السيرفر ليكون دائماً القناة رقم 1 في قائمة القنوات المباشرة على جميع الشاشات بدون إنترنت.</p>
+                        <div class="staff-ch1-title-row">
+                            <input id="ch1TitleInput" type="text" placeholder="اسم القناة (مثال: مساكن النزهة — القناة الترحيبية)">
+                            <button id="ch1SaveTitleBtn" type="button" class="admin-btn secondary">حفظ الاسم</button>
+                        </div>
+                        <input id="ch1VideoInput" type="file" accept="video/*" style="display:none">
+                        <div class="staff-ch1-actions">
+                            <button id="ch1UploadBtn" type="button" class="admin-btn">
+                                <i class="fas fa-film"></i>
+                                <span>رفع وتثبيت فيديو كقناة رقم 1</span>
+                            </button>
+                            <a id="ch1M3uLink" class="preview-pill-link" href="/api/channels.m3u" target="_blank">ملف القنوات الموحد (M3U)</a>
+                        </div>
+                        <div id="ch1ProgressWrap" class="mob-media-progress" style="display:none">
+                            <div class="mob-media-track">
+                                <div id="ch1ProgressBar" class="mob-media-bar"></div>
+                            </div>
+                            <span id="ch1ProgressText" class="mob-media-pct">0%</span>
+                        </div>
+                        <div id="ch1Status" class="admin-status"></div>
+                        <div id="ch1PreviewWrap" class="staff-ch1-preview" style="display:none">
+                            <video id="ch1PreviewVideo" class="staff-ch1-video" controls playsinline muted loop></video>
+                            <div class="staff-ch1-footer">
+                                <span id="ch1MetaText" class="staff-section-note"></span>
+                                <button id="ch1DeleteBtn" type="button" class="admin-btn danger">حذف الفيديو</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pane 5: Settings & Staff PIN -->
                 <div class="staff-pane" data-staff-pane="settings" style="display:none">
                     <div class="staff-settings-grid">
                         <div class="staff-subcard">
@@ -375,6 +409,7 @@
                             <label class="staff-field"><span>تحويلة الاستقبال</span><input id="setReceptionExt" type="text"></label>
                             <label class="staff-field"><span>مواعيد الإفطار</span><input id="setBreakfast" type="text"></label>
                             <label class="staff-field"><span>موعد المغادرة</span><input id="setCheckout" type="text"></label>
+                            <label class="staff-field"><span>رابط قائمة القنوات الإضافية (M3U URL اختياري)</span><input id="setIptvM3u" type="url" dir="ltr" placeholder="اتركه فارغاً لاستخدام القائمة الافتراضية المخزنة بالسيرفر"></label>
                             <button id="saveSettingsBtn" type="button" class="admin-btn">حفظ الإعدادات</button>
                             <div id="settingsSaveStatus" class="admin-status"></div>
                         </div>
@@ -439,15 +474,15 @@
         </div>
     </div>
 
-    <script defer src="js/config.js?v=35"></script>
-    <script defer src="js/i18n.js?v=35"></script>
-    <script defer src="js/supabase-client.js?v=35"></script>
-    <script defer src="js/webrtc-cast.js?v=35"></script>
-    <script defer src="js/widgets.js?v=35"></script>
-    <script defer src="js/portal.js?v=35"></script>
-    <script defer src="js/mobile-portal.js?v=35"></script>
-    <script defer src="js/lobby.js?v=35"></script>
-    <script defer src="js/staff.js?v=35"></script>
-    <script defer src="js/main.js?v=35"></script>
+    <script defer src="js/config.js?v=36"></script>
+    <script defer src="js/i18n.js?v=36"></script>
+    <script defer src="js/supabase-client.js?v=36"></script>
+    <script defer src="js/webrtc-cast.js?v=36"></script>
+    <script defer src="js/widgets.js?v=36"></script>
+    <script defer src="js/portal.js?v=36"></script>
+    <script defer src="js/mobile-portal.js?v=36"></script>
+    <script defer src="js/lobby.js?v=36"></script>
+    <script defer src="js/staff.js?v=36"></script>
+    <script defer src="js/main.js?v=36"></script>
 </body>
 </html>

@@ -37,13 +37,14 @@ class QuickPlayActivity : AppCompatActivity() {
         progress = findViewById(R.id.quick_play_progress)
 
         val prefs = getSharedPreferences("IPTV_PREFS", Context.MODE_PRIVATE)
-        val playlistUrl = prefs.getString("m3u_url", null)?.trim().orEmpty().ifEmpty { IptvDefaults.DEFAULT_M3U_URL }
+        val playlistUrl = IptvDefaults.resolvePlaylistUrl(this)
         val repository = IptvRepository(this, M3uIptvProvider(playlistUrl))
 
         progress.visibility = View.VISIBLE
         scope.launch {
             try {
-                val channels = repository.getChannels(forceRefresh = false)
+                val forceLocal = playlistUrl.contains("/api/channels.m3u", ignoreCase = true)
+                val channels = repository.getChannels(forceRefresh = forceLocal)
                 if (channels.isEmpty()) {
                     Toast.makeText(this@QuickPlayActivity, "لا توجد قنوات", Toast.LENGTH_LONG).show()
                     finish()

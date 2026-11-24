@@ -15,8 +15,8 @@ class M3uIptvProvider(
     private val url: String,
     private val fallbackUrls: List<String> = listOf(IptvDefaults.FALLBACK_M3U_URL),
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS)
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(25, TimeUnit.SECONDS)
         .writeTimeout(15, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build(),

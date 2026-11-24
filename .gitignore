@@ -7,6 +7,9 @@ local.properties
 node_modules/
 mvp/
 scripts/local_hotel_db.json
+scripts/widgets_cache.json
+scripts/cached_channels.m3u
+scripts/channel1_media/
 # Python caches
 __pycache__/
 *.py[cod]

@@ -86,6 +86,35 @@
         }, timeoutMs || 4000);
     }
 
+    function xhrUploadBinary(url, fileBlob, onProgress) {
+        return new Promise(function (resolve) {
+            var xhr = new global.XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', (fileBlob && fileBlob.type) ? fileBlob.type : 'application/octet-stream');
+            if (xhr.upload && typeof onProgress === 'function') {
+                xhr.upload.onprogress = function (evt) {
+                    if (evt.lengthComputable && evt.total > 0) {
+                        onProgress(Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
+                    }
+                };
+            }
+            xhr.onload = function () {
+                var parsed = null;
+                try { parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) {}
+                if (xhr.status >= 200 && xhr.status < 300 && parsed && parsed.ok) {
+                    if (typeof onProgress === 'function') onProgress(100);
+                    resolve(parsed);
+                } else {
+                    resolve({ ok: false, error: (parsed && parsed.error) || { message: 'فشل رفع الملف (' + xhr.status + ')' } });
+                }
+            };
+            xhr.onerror = function () {
+                resolve({ ok: false, error: { message: 'تعذر الاتصال بالسيرفر أثناء الرفع' } });
+            };
+            xhr.send(fileBlob);
+        });
+    }
+
     function isMissingRpcError(err) {
         if (!err) return false;
         var code = String(err.code || '');
@@ -326,32 +355,43 @@
                 pin: utils.normalizeDigits(pin || ''),
                 name: String(filename || 'media')
             });
-            return await new Promise(function (resolve) {
-                var xhr = new global.XMLHttpRequest();
-                xhr.open('POST', '/api/media/upload?' + q.toString(), true);
-                xhr.setRequestHeader('Content-Type', (fileBlob && fileBlob.type) ? fileBlob.type : 'application/octet-stream');
-                if (xhr.upload && typeof onProgress === 'function') {
-                    xhr.upload.onprogress = function (evt) {
-                        if (evt.lengthComputable && evt.total > 0) {
-                            onProgress(Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
-                        }
-                    };
-                }
-                xhr.onload = function () {
-                    var parsed = null;
-                    try { parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) {}
-                    if (xhr.status >= 200 && xhr.status < 300 && parsed && parsed.ok) {
-                        if (typeof onProgress === 'function') onProgress(100);
-                        resolve(parsed);
-                    } else {
-                        resolve({ ok: false, error: (parsed && parsed.error) || { message: 'فشل رفع الملف (' + xhr.status + ')' } });
-                    }
-                };
-                xhr.onerror = function () {
-                    resolve({ ok: false, error: { message: 'تعذر الاتصال بالسيرفر أثناء الرفع' } });
-                };
-                xhr.send(fileBlob);
+            return await xhrUploadBinary('/api/media/upload?' + q.toString(), fileBlob, onProgress);
+        },
+
+        fetchServerWidgets: async function () {
+            if (!(await detectLocalBackend())) return null;
+            var res = await fetchJson('/api/widgets', {}, 3500);
+            return res.ok ? res.data : null;
+        },
+
+        getHotelChannel1Info: async function () {
+            if (!(await detectLocalBackend())) return null;
+            var res = await fetchJson('/api/channel1/info', {}, 3000);
+            return res.ok ? res.data : null;
+        },
+
+        uploadHotelChannel1Video: async function (pin, title, fileBlob, filename, onProgress) {
+            if (!(await detectLocalBackend())) {
+                return { ok: false, error: { message: 'يتطلب تثبيت قناة الفندق تشغيل السيرفر المحلي على الشبكة.' } };
+            }
+            var q = new URLSearchParams({
+                pin: utils.normalizeDigits(pin || ''),
+                title: String(title || '').trim() || 'مساكن النزهة — القناة الترحيبية',
+                name: String(filename || 'welcome.mp4')
             });
+            return await xhrUploadBinary('/api/staff/channel1/upload?' + q.toString(), fileBlob, onProgress);
+        },
+
+        updateHotelChannel1Title: async function (pin, title) {
+            if (!(await detectLocalBackend())) return { error: { message: 'السيرفر المحلي غير متصل' } };
+            var res = await postApi('/api/staff/channel1/meta', { pin: utils.normalizeDigits(pin || ''), title: title }, 3500);
+            return res.ok && res.data ? res.data : { error: (res.data && res.data.error) || { message: 'تعذر تحديث اسم القناة' } };
+        },
+
+        deleteHotelChannel1Video: async function (pin) {
+            if (!(await detectLocalBackend())) return { error: { message: 'السيرفر المحلي غير متصل' } };
+            var res = await postApi('/api/staff/channel1/delete', { pin: utils.normalizeDigits(pin || '') }, 3500);
+            return res.ok && res.data ? res.data : { error: (res.data && res.data.error) || { message: 'تعذر إزالة الفيديو' } };
         },
 
         getCurrentRoomMedia: async function (room, pin) {

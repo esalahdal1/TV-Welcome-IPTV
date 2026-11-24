@@ -86,6 +86,7 @@
         if (tab === 'rooms') loadRooms();
         if (tab === 'requests') loadRequests();
         if (tab === 'notifications') loadNotificationsFeed();
+        if (tab === 'channel1') loadChannel1Panel();
         if (tab === 'settings') loadSettingsForm();
     }
 
@@ -396,7 +397,98 @@
         }).join('');
     }
 
-    /* --- Tab 4: Hotel Settings & Security --- */
+    /* --- Tab 4: Persistent Hotel Channel 1 Video --- */
+    function formatFileSizeMb(bytes) {
+        var b = Number(bytes) || 0;
+        return (b / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function renderChannel1State(res) {
+        var titleIn = $('ch1TitleInput');
+        var status = $('ch1Status');
+        var preview = $('ch1PreviewWrap');
+        var video = $('ch1PreviewVideo');
+        var metaEl = $('ch1MetaText');
+        if (!res || !res.active || !res.channel) {
+            if (titleIn && !titleIn.value) titleIn.value = 'مساكن النزهة — القناة الترحيبية';
+            if (preview) preview.style.display = 'none';
+            if (video) {
+                try { video.pause(); } catch (e) {}
+                video.removeAttribute('src');
+            }
+            if (metaEl) metaEl.innerText = '';
+            if (status && !status.innerText) {
+                status.innerText = 'لا يوجد فيديو مثبّت حالياً للقناة رقم 1.';
+            }
+            return;
+        }
+        var ch = res.channel;
+        if (titleIn) titleIn.value = ch.title || 'مساكن النزهة — القناة الترحيبية';
+        if (preview) preview.style.display = 'grid';
+        if (video && ch.url && video.getAttribute('src') !== ch.url) {
+            video.src = ch.url;
+        }
+        if (metaEl) {
+            metaEl.innerText = 'مثبّت في السيرفر: ' + (ch.filename || 'welcome.mp4') + ' • ' + formatFileSizeMb(ch.size);
+        }
+        if (status) {
+            status.innerText = 'القناة رقم 1 نشطة ومثبّتة داخل السيرفر وتعمل على الشاشات بدون إنترنت.';
+        }
+    }
+
+    async function loadChannel1Panel() {
+        var status = $('ch1Status');
+        if (status) status.innerText = 'جارٍ التحقق من حالة القناة الأولى...';
+        if (!db.getHotelChannel1Info) return;
+        var res = await db.getHotelChannel1Info();
+        if (!res) {
+            if (status) status.innerText = 'هذه الميزة تتطلب تشغيل خادم الفندق المحلي (Proxmox / المكتب).';
+            return;
+        }
+        renderChannel1State(res);
+    }
+
+    async function uploadChannel1File(file) {
+        if (!file) return;
+        var isVid = /^video\//i.test(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name || '');
+        var status = $('ch1Status');
+        var progWrap = $('ch1ProgressWrap');
+        var progBar = $('ch1ProgressBar');
+        var progTxt = $('ch1ProgressText');
+        var btn = $('ch1UploadBtn');
+        if (!isVid) {
+            showStaffToast('يرجى اختيار ملف فيديو صالح (MP4 / MOV / WebM)', true);
+            return;
+        }
+        if (file.size > 500 * 1024 * 1024) {
+            showStaffToast('حجم الفيديو يتجاوز 500 ميجابايت.', true);
+            return;
+        }
+        var title = ($('ch1TitleInput') && $('ch1TitleInput').value || '').trim();
+        if (btn) btn.disabled = true;
+        if (progWrap) progWrap.style.display = 'flex';
+        if (progBar) progBar.style.width = '0%';
+        if (progTxt) progTxt.innerText = '0%';
+        if (status) status.innerText = 'جارٍ رفع وتثبيت الفيديو داخل السيرفر...';
+
+        var res = await db.uploadHotelChannel1Video(state.pin, title, file, file.name, function (pct) {
+            if (progBar) progBar.style.width = pct + '%';
+            if (progTxt) progTxt.innerText = pct + '%';
+        });
+        if (btn) btn.disabled = false;
+        if (progWrap) progWrap.style.display = 'none';
+
+        if (res && res.ok) {
+            renderChannel1State(res);
+            showStaffToast('تم تثبيت الفيديو كقناة رقم 1 بنجاح!', false);
+        } else {
+            var errMsg = (res && res.error && res.error.message) || 'تعذر رفع الفيديو';
+            if (status) status.innerText = errMsg;
+            showStaffToast(errMsg, true);
+        }
+    }
+
+    /* --- Tab 5: Hotel Settings & Security --- */
     async function loadSettingsForm() {
         var h = cfg.HOTEL_DEFAULTS;
         var remote = await db.fetchHotelSettings();
@@ -405,6 +497,7 @@
         if ($('setReceptionExt')) $('setReceptionExt').value = (remote && remote.reception_ext) || h.receptionExt;
         if ($('setBreakfast')) $('setBreakfast').value = (remote && remote.breakfast_hours) || h.breakfastHours;
         if ($('setCheckout')) $('setCheckout').value = (remote && remote.checkout_time) || h.checkoutTime;
+        if ($('setIptvM3u')) $('setIptvM3u').value = (remote && remote.iptv_m3u_url) || '';
     }
 
     async function saveHotelSettings() {
@@ -415,7 +508,8 @@
             wifi_pass: ($('setWifiPass') && $('setWifiPass').value || '').trim(),
             reception_ext: ($('setReceptionExt') && $('setReceptionExt').value || '').trim(),
             breakfast_hours: ($('setBreakfast') && $('setBreakfast').value || '').trim(),
-            checkout_time: ($('setCheckout') && $('setCheckout').value || '').trim()
+            checkout_time: ($('setCheckout') && $('setCheckout').value || '').trim(),
+            iptv_m3u_url: ($('setIptvM3u') && $('setIptvM3u').value || '').trim()
         });
         if (res.error) {
             if (status) status.innerText = res.error.message || 'فشل الحفظ';
@@ -569,6 +663,43 @@
             if ($('adminSend')) $('adminSend').addEventListener('click', sendNotificationFromModal);
             if ($('adminModal')) $('adminModal').addEventListener('click', function (e) { if (e.target === $('adminModal')) closeNotifyModal(); });
 
+            if ($('ch1UploadBtn') && $('ch1VideoInput')) {
+                $('ch1UploadBtn').addEventListener('click', function () {
+                    $('ch1VideoInput').click();
+                });
+                $('ch1VideoInput').addEventListener('change', function () {
+                    var f = $('ch1VideoInput').files && $('ch1VideoInput').files[0];
+                    $('ch1VideoInput').value = '';
+                    if (f) uploadChannel1File(f);
+                });
+            }
+            if ($('ch1SaveTitleBtn')) {
+                $('ch1SaveTitleBtn').addEventListener('click', async function () {
+                    var title = ($('ch1TitleInput') && $('ch1TitleInput').value || '').trim();
+                    if (!title || !db.updateHotelChannel1Title) return;
+                    var res = await db.updateHotelChannel1Title(state.pin, title);
+                    if (res && res.ok) {
+                        renderChannel1State(res);
+                        showStaffToast('تم تحديث اسم القناة رقم 1', false);
+                    } else {
+                        showStaffToast((res && res.error && res.error.message) || 'تعذر حفظ الاسم', true);
+                    }
+                });
+            }
+            if ($('ch1DeleteBtn')) {
+                $('ch1DeleteBtn').addEventListener('click', async function () {
+                    if (!global.confirm('تأكيد حذف فيديو القناة رقم 1 من السيرفر؟')) return;
+                    if (!db.deleteHotelChannel1Video) return;
+                    var res = await db.deleteHotelChannel1Video(state.pin);
+                    if (res && res.ok) {
+                        if ($('ch1Status')) $('ch1Status').innerText = '';
+                        renderChannel1State(res);
+                        showStaffToast('تم حذف فيديو القناة رقم 1', false);
+                    } else {
+                        showStaffToast((res && res.error && res.error.message) || 'تعذر الحذف', true);
+                    }
+                });
+            }
             if ($('saveSettingsBtn')) $('saveSettingsBtn').addEventListener('click', saveHotelSettings);
             if ($('changePinBtn')) $('changePinBtn').addEventListener('click', changeStaffPin);
             if ($('staffLogoutBtn')) $('staffLogoutBtn').addEventListener('click', logout);
