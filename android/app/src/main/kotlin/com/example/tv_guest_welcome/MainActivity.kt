@@ -1,19 +1,16 @@
 package com.example.tv_guest_welcome
 
 import android.annotation.SuppressLint
-import android.app.DownloadManager
 import android.content.ActivityNotFoundException
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
@@ -32,17 +29,25 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
-    private var updateDownloadId: Long? = null
-    private var updateReceiver: BroadcastReceiver? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var offlineRecoveryRunnable: Runnable? = null
     private var roomNumber: String? = null
     private var appMode: String = SetupActivity.MODE_ROOM
     private var customPortalBaseUrl: String? = null
-    private var attemptedWelcomeFallback: Boolean = false
     private var loadedOfflineFallback: Boolean = false
+
+    @Volatile
+    private var discoveryInFlight: Boolean = false
+    @Volatile
+    private var updateInFlight: Boolean = false
 
     @Volatile
     private var dpadDownBlockedByWeb: Boolean = false
@@ -60,7 +65,13 @@ class MainActivity : AppCompatActivity() {
             ?.trim()?.lowercase()?.ifEmpty { SetupActivity.MODE_ROOM }
             ?: SetupActivity.MODE_ROOM
         roomNumber = prefs.getString(SetupActivity.KEY_ROOM_NUMBER, null)?.trim()?.takeIf { it.isNotEmpty() }
-        customPortalBaseUrl = prefs.getString(SetupActivity.KEY_PORTAL_URL, null)?.trim()?.takeIf { it.isNotEmpty() }
+        val savedPortal = prefs.getString(SetupActivity.KEY_PORTAL_URL, null)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() && !it.contains("github.io", ignoreCase = true) }
+        customPortalBaseUrl = ServerDiscovery.normalizePortalUrl(savedPortal ?: DEFAULT_PORTAL_URL)
+        if (savedPortal == null) {
+            prefs.edit().putString(SetupActivity.KEY_PORTAL_URL, customPortalBaseUrl).apply()
+        }
 
         val isConfigured = prefs.getBoolean(SetupActivity.KEY_IS_CONFIGURED, false) || !roomNumber.isNullOrEmpty()
         if (!isConfigured) {
@@ -166,8 +177,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // عند توفر الإنترنت يستخدم LOAD_DEFAULT، وعند انقطاعه يستخدم الكاش ثم ينتقل للواجهة المدمجة عند الفشل
+        // يفتح البوابة المحلية فوراً، ويتحقق بالخلفية لاكتشاف السيرفر تلقائياً إن تغير عنوانه
         webView.loadUrl(buildPrimaryWelcomeUrl())
+        verifyCurrentOrDiscoverAsync()
 
         webView.isFocusableInTouchMode = true
         webView.requestFocus()
@@ -188,8 +200,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        updateReceiver?.let { runCatching { unregisterReceiver(it) } }
-        updateReceiver = null
+        mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
@@ -254,13 +265,9 @@ class MainActivity : AppCompatActivity() {
         if (currentUrl.startsWith(OFFLINE_ASSET_URL)) return true
         val uri = runCatching { Uri.parse(currentUrl) }.getOrNull() ?: return false
         val host = uri.host?.lowercase().orEmpty()
-        val path = uri.path?.lowercase().orEmpty()
-
-        if (host == "esalahdal1.github.io" && (path.startsWith("/tv-welcome") || path.startsWith("/tv-welcome-iptv"))) {
-            return true
-        }
-        val customHost = customPortalBaseUrl?.let { runCatching { Uri.parse(it).host?.lowercase() }.getOrNull() }
-        return !customHost.isNullOrEmpty() && host == customHost
+        val activeBase = customPortalBaseUrl ?: DEFAULT_PORTAL_URL
+        val activeHost = runCatching { Uri.parse(activeBase).host?.lowercase() }.getOrNull().orEmpty()
+        return activeHost.isNotEmpty() && host == activeHost
     }
 
     private fun launchLiveTv() {
@@ -272,9 +279,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun reloadOnlinePortal(clearCacheFirst: Boolean = false) {
-        attemptedWelcomeFallback = false
         loadedOfflineFallback = false
         dpadDownBlockedByWeb = false
+        cancelOfflineRecovery()
         webView.settings.cacheMode = if (isNetworkAvailable()) {
             WebSettings.LOAD_DEFAULT
         } else {
@@ -284,6 +291,7 @@ class MainActivity : AppCompatActivity() {
             webView.clearCache(true)
         }
         webView.loadUrl(buildPrimaryWelcomeUrl())
+        verifyCurrentOrDiscoverAsync()
     }
 
     private fun showTechnicianMenu() {
@@ -293,10 +301,11 @@ class MainActivity : AppCompatActivity() {
             "الغرفة الحالية: ${roomNumber ?: "—"}"
         }
         val items = arrayOf(
-            "إعدادات الغرفة / الصالة ورابط IPTV",
+            "إعدادات الغرفة وعنوان السيرفر وIPTV",
+            "البحث التلقائي عن السيرفر في الشبكة",
             "تصفح قائمة القنوات المباشرة",
             "إعادة تحميل البوابة (مسح الكاش)",
-            "التحقق من تحديث التطبيق (APK)",
+            "تحديث التطبيق من السيرفر المحلي (APK)",
             "تعيين كلانشر / إعدادات النظام"
         )
         AlertDialog.Builder(this)
@@ -304,10 +313,14 @@ class MainActivity : AppCompatActivity() {
             .setItems(items) { _, which ->
                 when (which) {
                     0 -> startActivity(Intent(this, SetupActivity::class.java))
-                    1 -> launchChannelsGrid()
-                    2 -> reloadOnlinePortal(clearCacheFirst = true)
-                    3 -> downloadAndInstallUpdate()
-                    4 -> openHomeSettings()
+                    1 -> {
+                        Toast.makeText(this, "جارٍ البحث التلقائي عن سيرفر الفندق...", Toast.LENGTH_SHORT).show()
+                        discoverAndRecoverServer(showOfflineOnFail = false, notifyEvenIfSame = true)
+                    }
+                    2 -> launchChannelsGrid()
+                    3 -> reloadOnlinePortal(clearCacheFirst = true)
+                    4 -> downloadAndInstallUpdate()
+                    5 -> openHomeSettings()
                 }
             }
             .setNegativeButton("إغلاق", null)
@@ -467,20 +480,98 @@ class MainActivity : AppCompatActivity() {
 
     private fun tryFallbackFromMissingPages(loadedUrl: String) {
         if (loadedUrl.startsWith(OFFLINE_ASSET_URL)) return
+        discoverAndRecoverServer(showOfflineOnFail = true, notifyEvenIfSame = false)
+    }
 
-        if (!attemptedWelcomeFallback && !loadedUrl.contains("esalahdal1.github.io/TV-Welcome/", ignoreCase = true)) {
-            attemptedWelcomeFallback = true
-            val fallbackUrl = buildWelcomeUrl(FALLBACK_PORTAL_URL)
-            webView.post { webView.loadUrl(fallbackUrl) }
-            return
-        }
+    private fun verifyCurrentOrDiscoverAsync() {
+        val activeBase = ServerDiscovery.normalizePortalUrl(customPortalBaseUrl ?: DEFAULT_PORTAL_URL)
+        Thread {
+            if (ServerDiscovery.isMasakenServer(activeBase, 1500L)) {
+                return@Thread
+            }
+            discoverAndRecoverServer(showOfflineOnFail = true, notifyEvenIfSame = false)
+        }.start()
+    }
 
-        if (!loadedOfflineFallback) {
-            loadedOfflineFallback = true
-            dpadDownBlockedByWeb = false
-            val offlineUrl = buildOfflineAssetUrl()
-            webView.post { webView.loadUrl(offlineUrl) }
+    private fun discoverAndRecoverServer(showOfflineOnFail: Boolean, notifyEvenIfSame: Boolean = false) {
+        if (discoveryInFlight) return
+        discoveryInFlight = true
+        val previousBase = ServerDiscovery.normalizePortalUrl(customPortalBaseUrl ?: DEFAULT_PORTAL_URL)
+
+        Thread {
+            val found = try {
+                ServerDiscovery.discoverServerUrl(applicationContext, previousBase)
+            } finally {
+                discoveryInFlight = false
+            }
+
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (!found.isNullOrEmpty()) {
+                    val normalized = ServerDiscovery.normalizePortalUrl(found)
+                    val changed = normalized != previousBase
+                    if (changed) {
+                        customPortalBaseUrl = normalized
+                        getSharedPreferences(SetupActivity.PREFS_TV, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString(SetupActivity.KEY_PORTAL_URL, normalized)
+                            .apply()
+                        Toast.makeText(
+                            this,
+                            "تم اكتشاف عنوان السيرفر تلقائياً: $normalized",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else if (notifyEvenIfSame) {
+                        Toast.makeText(this, "السيرفر متصل ويعمل على: $normalized", Toast.LENGTH_SHORT).show()
+                    }
+
+                    if (changed || loadedOfflineFallback || notifyEvenIfSame) {
+                        loadedOfflineFallback = false
+                        dpadDownBlockedByWeb = false
+                        cancelOfflineRecovery()
+                        webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+                        webView.loadUrl(buildPrimaryWelcomeUrl())
+                    }
+                } else {
+                    if (notifyEvenIfSame) {
+                        Toast.makeText(this, "تعذر العثور على السيرفر في الشبكة حالياً", Toast.LENGTH_LONG).show()
+                    }
+                    if (showOfflineOnFail && !loadedOfflineFallback) {
+                        loadedOfflineFallback = true
+                        dpadDownBlockedByWeb = false
+                        webView.loadUrl(buildOfflineAssetUrl())
+                    }
+                    if (loadedOfflineFallback) {
+                        scheduleOfflineRecovery()
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun scheduleOfflineRecovery() {
+        if (offlineRecoveryRunnable != null) return
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!loadedOfflineFallback || isFinishing || isDestroyed) {
+                    offlineRecoveryRunnable = null
+                    return
+                }
+                offlineRecoveryRunnable = null
+                discoverAndRecoverServer(showOfflineOnFail = false, notifyEvenIfSame = false)
+                if (loadedOfflineFallback && offlineRecoveryRunnable == null) {
+                    offlineRecoveryRunnable = this
+                    mainHandler.postDelayed(this, 12_000L)
+                }
+            }
         }
+        offlineRecoveryRunnable = runnable
+        mainHandler.postDelayed(runnable, 12_000L)
+    }
+
+    private fun cancelOfflineRecovery() {
+        offlineRecoveryRunnable?.let { mainHandler.removeCallbacks(it) }
+        offlineRecoveryRunnable = null
     }
 
     private fun isNetworkAvailable(): Boolean {
@@ -488,7 +579,10 @@ class MainActivity : AppCompatActivity() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val network = cm.activeNetwork ?: return false
             val caps = cm.getNetworkCapabilities(network) ?: return false
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         } else {
             @Suppress("DEPRECATION")
             cm.activeNetworkInfo?.isConnected == true
@@ -528,46 +622,87 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "فعّل السماح بتثبيت التطبيقات من هذا المصدر ثم اضغط تحديث مرة أخرى", Toast.LENGTH_LONG).show()
             return
         }
+        if (updateInFlight) {
+            Toast.makeText(this, "التحديث قيد التنزيل حالياً...", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        val apkUrl = "https://github.com/esalahdal1/TV-Welcome-IPTV/releases/latest/download/app-debug.apk"
-        val fileName = "masaken-hotel.apk"
+        updateInFlight = true
+        Toast.makeText(this, "جارٍ تنزيل التحديث من السيرفر المحلي...", Toast.LENGTH_SHORT).show()
+        val initialBase = ServerDiscovery.normalizePortalUrl(customPortalBaseUrl ?: DEFAULT_PORTAL_URL)
 
-        val request = DownloadManager.Request(Uri.parse(apkUrl))
-            .setTitle("masaken hotel")
-            .setDescription("تنزيل تحديث")
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, fileName)
-
-        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val downloadId = manager.enqueue(request)
-        updateDownloadId = downloadId
-
-        updateReceiver?.let { runCatching { unregisterReceiver(it) } }
-        updateReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent?) {
-                val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: return
-                if (id != downloadId) return
-
-                val apkFile = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-                if (!apkFile.exists()) {
-                    Toast.makeText(this@MainActivity, "فشل تنزيل التحديث", Toast.LENGTH_LONG).show()
-                    return
+        Thread {
+            var downloadedFile: File? = null
+            var errorMessage = "تعذر العثور على ملف التحديث (/masaken.apk) على السيرفر"
+            try {
+                val activeBase = if (ServerDiscovery.isMasakenServer(initialBase, 1200L)) {
+                    initialBase
+                } else {
+                    ServerDiscovery.discoverServerUrl(applicationContext, initialBase)?.also { found ->
+                        val norm = ServerDiscovery.normalizePortalUrl(found)
+                        customPortalBaseUrl = norm
+                        getSharedPreferences(SetupActivity.PREFS_TV, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString(SetupActivity.KEY_PORTAL_URL, norm)
+                            .apply()
+                    } ?: initialBase
                 }
-                installApk(apkFile)
+
+                val urls = listOf(
+                    "${activeBase}masaken.apk",
+                    "${activeBase}api/apk/download",
+                    GITHUB_FALLBACK_APK_URL
+                )
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(45, TimeUnit.SECONDS)
+                    .followRedirects(true)
+                    .followSslRedirects(true)
+                    .build()
+
+                val targetFile = File(cacheDir, "masaken-hotel.apk")
+                val tempFile = File(cacheDir, "masaken-hotel.apk.tmp")
+
+                for (candidateUrl in urls) {
+                    val ok = runCatching {
+                        val req = Request.Builder().url(candidateUrl).build()
+                        client.newCall(req).execute().use { resp ->
+                            if (!resp.isSuccessful) return@use false
+                            val body = resp.body ?: return@use false
+                            body.byteStream().use { input ->
+                                FileOutputStream(tempFile).use { output ->
+                                    input.copyTo(output, 65536)
+                                }
+                            }
+                            tempFile.length() > 100_000L
+                        }
+                    }.getOrDefault(false)
+
+                    if (ok) {
+                        if (targetFile.exists()) targetFile.delete()
+                        tempFile.renameTo(targetFile)
+                        downloadedFile = targetFile
+                        break
+                    } else if (tempFile.exists()) {
+                        tempFile.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                errorMessage = "فشل تنزيل التحديث: ${e.localizedMessage ?: "خطأ بالشبكة"}"
+            } finally {
+                updateInFlight = false
             }
-        }
 
-        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(updateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(updateReceiver, filter)
-        }
-
-        Toast.makeText(this, "جارٍ تنزيل التحديث...", Toast.LENGTH_SHORT).show()
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val ready = downloadedFile
+                if (ready != null && ready.exists()) {
+                    installApk(ready)
+                } else {
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
     }
 
     private fun maybePromptSetAsHomeOnce() {
@@ -642,8 +777,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val DEFAULT_PORTAL_URL = "https://esalahdal1.github.io/TV-Welcome-IPTV/"
-        private const val FALLBACK_PORTAL_URL = "https://esalahdal1.github.io/TV-Welcome/"
+        private const val DEFAULT_PORTAL_URL = SetupActivity.DEFAULT_PORTAL_URL
         private const val OFFLINE_ASSET_URL = "file:///android_asset/offline_welcome.html"
+        private const val GITHUB_FALLBACK_APK_URL = "https://github.com/esalahdal1/TV-Welcome-IPTV/releases/latest/download/app-debug.apk"
     }
 }

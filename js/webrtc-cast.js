@@ -221,6 +221,11 @@
                 if (typeof receiver.callbacks.onMediaStop === 'function') receiver.callbacks.onMediaStop();
                 return;
             }
+            if (p.type === 'room-reset') {
+                cleanupReceiverPeer();
+                if (typeof receiver.callbacks.onRoomReset === 'function') receiver.callbacks.onRoomReset();
+                return;
+            }
 
             if (p.kind === 'offer') {
                 handleReceiverOffer(p);

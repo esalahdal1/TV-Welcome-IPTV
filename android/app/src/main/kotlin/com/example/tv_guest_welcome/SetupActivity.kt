@@ -21,6 +21,8 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var lobbyRadio: RadioButton
     private lateinit var roomInputGroup: View
     private lateinit var roomInput: EditText
+    private lateinit var portalInput: EditText
+    private lateinit var discoverButton: Button
     private lateinit var m3uInput: EditText
     private lateinit var saveButton: Button
     private lateinit var overlayButton: Button
@@ -37,6 +39,8 @@ class SetupActivity : AppCompatActivity() {
         lobbyRadio = findViewById(R.id.mode_lobby_radio)
         roomInputGroup = findViewById(R.id.room_input_group)
         roomInput = findViewById(R.id.room_number_input)
+        portalInput = findViewById(R.id.portal_url_input)
+        discoverButton = findViewById(R.id.discover_server_button)
         m3uInput = findViewById(R.id.m3u_url_input)
         saveButton = findViewById(R.id.save_button)
         overlayButton = findViewById(R.id.overlay_perm_button)
@@ -53,6 +57,10 @@ class SetupActivity : AppCompatActivity() {
             ?: prefs.getString(KEY_APP_MODE, MODE_ROOM)
         val existingRoom = intent.getStringExtra(EXTRA_ROOM)?.trim()
             ?: prefs.getString(KEY_ROOM_NUMBER, "").orEmpty()
+        val existingPortal = intent.getStringExtra(EXTRA_PORTAL_URL)?.trim()
+            ?: prefs.getString(KEY_PORTAL_URL, DEFAULT_PORTAL_URL)
+                ?.takeIf { it.isNotBlank() && !it.contains("github.io", ignoreCase = true) }
+            ?: DEFAULT_PORTAL_URL
         val existingM3u = intent.getStringExtra(EXTRA_M3U_URL)?.trim()
             ?: iptvPrefs.getString(KEY_M3U_URL, "").orEmpty()
 
@@ -62,6 +70,7 @@ class SetupActivity : AppCompatActivity() {
             roomRadio.isChecked = true
         }
         roomInput.setText(existingRoom)
+        portalInput.setText(existingPortal)
         m3uInput.setText(existingM3u)
 
         syncRoomVisibility()
@@ -75,11 +84,31 @@ class SetupActivity : AppCompatActivity() {
             openOverlaySettings()
         }
 
+        discoverButton.setOnClickListener {
+            discoverButton.isEnabled = false
+            discoverButton.text = "جارٍ البحث..."
+            val currentTyped = portalInput.text?.toString()?.trim()
+            Thread {
+                val found = ServerDiscovery.discoverServerUrl(this, currentTyped)
+                runOnUiThread {
+                    discoverButton.isEnabled = true
+                    discoverButton.text = "بحث تلقائي"
+                    if (!found.isNullOrEmpty()) {
+                        portalInput.setText(found)
+                        Toast.makeText(this, "تم العثور على السيرفر: $found", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "تعذر العثور تلقائياً — تأكد من اتصال الواي فاي/الشبكة", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.start()
+        }
+
         // فك القفل نهائياً: حقل الإدخال وزر الحفظ مفعّلان دائماً ولا يعتمدان على Overlay
         saveButton.isEnabled = true
         saveButton.setOnClickListener {
             val selectedMode = if (lobbyRadio.isChecked) MODE_LOBBY else MODE_ROOM
             val roomValue = roomInput.text.toString().trim()
+            val portalValue = ServerDiscovery.normalizePortalUrl(portalInput.text?.toString())
             val m3uValue = m3uInput.text.toString().trim()
 
             if (selectedMode == MODE_ROOM && roomValue.isEmpty()) {
@@ -94,7 +123,7 @@ class SetupActivity : AppCompatActivity() {
                 mode = selectedMode,
                 room = roomValue,
                 m3uUrl = m3uValue,
-                portalUrl = intent.getStringExtra(EXTRA_PORTAL_URL)?.trim()
+                portalUrl = portalValue
             )
             launchMainAndFinish()
         }
@@ -131,7 +160,10 @@ class SetupActivity : AppCompatActivity() {
         if (mode == MODE_ROOM && roomRaw.isEmpty()) return false
 
         val m3uRaw = launchIntent.getStringExtra(EXTRA_M3U_URL)?.trim()
-        val portalRaw = launchIntent.getStringExtra(EXTRA_PORTAL_URL)?.trim()
+        val portalRaw = ServerDiscovery.normalizePortalUrl(
+            launchIntent.getStringExtra(EXTRA_PORTAL_URL)?.trim()
+                ?: prefs.getString(KEY_PORTAL_URL, DEFAULT_PORTAL_URL)
+        )
         saveConfiguration(prefs, iptvPrefs, mode, roomRaw, m3uRaw, portalRaw)
         Toast.makeText(
             this,
@@ -231,6 +263,7 @@ class SetupActivity : AppCompatActivity() {
         const val KEY_IS_CONFIGURED = "is_configured"
         const val KEY_PORTAL_URL = "portal_base_url"
         const val KEY_M3U_URL = "m3u_url"
+        const val DEFAULT_PORTAL_URL = ServerDiscovery.DEFAULT_SERVER_URL
 
         const val MODE_ROOM = "room"
         const val MODE_LOBBY = "lobby"

@@ -33,11 +33,22 @@ jobs:
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+    - name: Decode permanent signing keystore
+      if: env.KEYSTORE_B64 != ''
+      env:
+        KEYSTORE_B64: ${{ secrets.MASAKEN_KEYSTORE_BASE64 }}
+      run: |
+        printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/masaken-release.jks"
+        echo "MASAKEN_KEYSTORE_PATH=$RUNNER_TEMP/masaken-release.jks" >> "$GITHUB_ENV"
+
     - name: Build with Gradle
       run: gradle assembleRelease --stacktrace --info --warning-mode all
       working-directory: android
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        MASAKEN_KEYSTORE_PASSWORD: ${{ secrets.MASAKEN_KEYSTORE_PASSWORD }}
+        MASAKEN_KEY_ALIAS: ${{ secrets.MASAKEN_KEY_ALIAS }}
+        MASAKEN_KEY_PASSWORD: ${{ secrets.MASAKEN_KEY_PASSWORD }}
 
     - name: Prepare APK filename
       run: |

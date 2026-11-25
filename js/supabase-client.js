@@ -394,6 +394,23 @@
             return res.ok && res.data ? res.data : { error: (res.data && res.data.error) || { message: 'تعذر إزالة الفيديو' } };
         },
 
+        getLocalApkInfo: async function () {
+            if (!(await detectLocalBackend())) return null;
+            var res = await fetchJson('/api/apk/info', {}, 3500);
+            return res.ok ? res.data : null;
+        },
+
+        uploadLocalApk: async function (pin, fileBlob, filename, onProgress) {
+            if (!(await detectLocalBackend())) {
+                return { ok: false, error: { message: 'السيرفر المحلي غير متصل' } };
+            }
+            var q = new URLSearchParams({
+                pin: utils.normalizeDigits(pin || ''),
+                name: String(filename || 'masaken.apk')
+            });
+            return await xhrUploadBinary('/api/staff/apk/upload?' + q.toString(), fileBlob, onProgress);
+        },
+
         getCurrentRoomMedia: async function (room, pin) {
             if (!(await detectLocalBackend())) return { active: false, media: null };
             var q = new URLSearchParams({

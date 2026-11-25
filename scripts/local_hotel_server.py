@@ -14,6 +14,7 @@ import os
 import random
 import re
 import signal
+import socket
 import sys
 import tempfile
 import threading
@@ -29,10 +30,15 @@ DB_PATH = os.path.join(SCRIPTS_DIR, "local_hotel_db.json")
 WIDGETS_CACHE_PATH = os.path.join(SCRIPTS_DIR, "widgets_cache.json")
 CACHED_M3U_PATH = os.path.join(SCRIPTS_DIR, "cached_channels.m3u")
 CHANNEL1_DIR = os.path.join(SCRIPTS_DIR, "channel1_media")
+APK_DIR = os.path.join(SCRIPTS_DIR, "apk_dist")
+APK_FILE_PATH = os.path.join(APK_DIR, "masaken.apk")
 MEDIA_DIR = os.path.join(tempfile.gettempdir(), "tvip_cast_media")
 os.makedirs(MEDIA_DIR, exist_ok=True)
 os.makedirs(CHANNEL1_DIR, exist_ok=True)
+os.makedirs(APK_DIR, exist_ok=True)
 
+SERVICE_SIGNATURE = "masaken-tvip"
+DISCOVERY_UDP_PORT = 8898
 DEFAULT_UPSTREAM_M3U = "https://iptv-org.github.io/iptv/index.m3u"
 DEFAULT_SETTINGS = {
     "wifi_name": "Masaken_Guest",
@@ -49,10 +55,12 @@ BLOCKED_PREFIXES = (
     "scripts/local_hotel_db.json",
     "scripts/widgets_cache.json",
     "scripts/channel1_media/",
+    "scripts/apk_dist/",
 )
 PUBLIC_URL = str(os.environ.get("TVIP_PUBLIC_URL") or "").strip().rstrip("/")
 MAX_MEDIA_BYTES = 150 * 1024 * 1024
 MAX_CHANNEL1_BYTES = 500 * 1024 * 1024
+MAX_APK_BYTES = 150 * 1024 * 1024
 ALLOWED_MEDIA_MIME = {
     "image/jpeg": ("image", ".jpg"),
     "image/jpg": ("image", ".jpg"),
@@ -275,8 +283,59 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-def gen_pin() -> str:
+def gen_pin(exclude: str = "") -> str:
+    clean_ex = str(exclude or "").strip()
+    for _ in range(20):
+        cand = str(random.randint(1000, 9999))
+        if cand != clean_ex:
+            return cand
     return str(random.randint(1000, 9999))
+
+
+def get_apk_info_payload(data: dict = None) -> dict:
+    if not os.path.exists(APK_FILE_PATH):
+        return {"ok": True, "available": False, "size": 0, "updated_at": None, "url": "/masaken.apk"}
+    size = os.path.getsize(APK_FILE_PATH)
+    mtime_iso = datetime.fromtimestamp(os.path.getmtime(APK_FILE_PATH), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    meta = (data or {}).get("apk_info") or {}
+    return {
+        "ok": True,
+        "available": size > 0,
+        "size": size,
+        "filename": meta.get("filename") or "masaken.apk",
+        "updated_at": meta.get("updated_at") or mtime_iso,
+        "url": "/masaken.apk",
+    }
+
+
+def start_udp_discovery_responder(http_port: int, udp_port: int = DISCOVERY_UDP_PORT) -> None:
+    """Reply to LAN UDP broadcast probes so TVs auto-discover server IP changes instantly."""
+    def responder():
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("0.0.0.0", udp_port))
+        except Exception as exc:
+            print(f"UDP discovery bind skipped on port {udp_port}: {exc}", flush=True)
+            return
+        while True:
+            try:
+                raw, addr = sock.recvfrom(1024)
+                msg = raw.decode("utf-8", errors="ignore").strip()
+                if msg.startswith("MASAKEN_DISCOVER"):
+                    reply = json.dumps(
+                        {
+                            "service": SERVICE_SIGNATURE,
+                            "http_port": 80,
+                            "direct_port": http_port,
+                            "hostname": socket.gethostname(),
+                        }
+                    ).encode("utf-8")
+                    sock.sendto(reply, addr)
+            except Exception:
+                time.sleep(0.2)
+
+    threading.Thread(target=responder, daemon=True).start()
 
 
 def default_db() -> dict:
@@ -371,8 +430,8 @@ def public_media_meta(entry: dict, pin: str) -> dict:
     }
 
 
-def clear_room_media(room: str, notify_pin: str = "") -> None:
-    """Remove active cast media for a room and unlink its temporary file."""
+def clear_room_media(room: str, notify_pin: str = "", full_reset: bool = False) -> None:
+    """Remove active cast media for a room, purge orphan room files, and notify sessions."""
     clean_room = normalize_digits(room)
     if not clean_room:
         return
@@ -384,8 +443,24 @@ def clear_room_media(room: str, notify_pin: str = "") -> None:
                 os.unlink(prev["path"])
         except OSError:
             pass
+    prefix = f"room_{clean_room}_"
+    try:
+        for fname in os.listdir(MEDIA_DIR):
+            if fname.startswith(prefix):
+                fpath = os.path.join(MEDIA_DIR, fname)
+                if os.path.isfile(fpath):
+                    try:
+                        os.unlink(fpath)
+                    except OSError:
+                        pass
+    except OSError:
+        pass
     if notify_pin:
-        push_rtc_signal(f"tvip-cast-{clean_room}-{notify_pin}", {"type": "media-stop"})
+        ch = f"tvip-cast-{clean_room}-{notify_pin}"
+        push_rtc_signal(ch, {"type": "media-stop"})
+        if full_reset:
+            push_rtc_signal(ch, {"kind": "stop", "from": "tv"})
+            push_rtc_signal(ch, {"type": "room-reset"})
 
 
 class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -420,6 +495,9 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         if parsed.path == "/api/channel1/video":
             self.serve_channel1_video(head_only=True)
             return
+        if parsed.path in ("/masaken.apk", "/api/apk/download"):
+            self.serve_apk_file(head_only=True)
+            return
         if parsed.path == "/api/channels.m3u":
             self.serve_channels_m3u(head_only=True)
             return
@@ -453,6 +531,9 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/masaken.apk":
+            self.serve_apk_file(head_only=False)
+            return
         if parsed.path.startswith("/api/"):
             self.handle_api_get(parsed.path, urllib.parse.parse_qs(parsed.query))
             return
@@ -471,6 +552,9 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/staff/channel1/upload":
             self.handle_channel1_upload(urllib.parse.parse_qs(parsed.query))
+            return
+        if parsed.path == "/api/staff/apk/upload":
+            self.handle_apk_upload(urllib.parse.parse_qs(parsed.query))
             return
         if not parsed.path.startswith("/api/"):
             self.send_error(405, "Method Not Allowed")
@@ -555,6 +639,47 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(404, {"error": {"message": "لم يتم رفع فيديو القناة الأولى بعد"}})
             return
         self.stream_file_with_range(ch1["path"], ch1.get("mime") or "video/mp4", head_only=head_only)
+
+    def serve_apk_file(self, head_only: bool = False):
+        """Serve the locally hosted Masaken Android TV APK for LAN install & self-update."""
+        if not os.path.exists(APK_FILE_PATH):
+            self.send_json(404, {"error": {"message": "لا توجد نسخة APK مرفوعة على السيرفر بعد"}})
+            return
+        self.stream_file_with_range(APK_FILE_PATH, "application/vnd.android.package-archive", head_only=head_only)
+
+    def handle_apk_upload(self, qs: dict):
+        """Allow hotel admin to upload/replace the local Android TV APK (/masaken.apk)."""
+        pin = normalize_digits((qs.get("pin") or [""])[0])
+        with db_lock:
+            data = load_db()
+            if not self.verify_staff(data, pin):
+                self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                return
+
+        length, ok = self.read_binary_upload(MAX_APK_BYTES)
+        if not ok:
+            return
+        raw_name = urllib.parse.unquote((qs.get("name") or ["masaken.apk"])[0]).strip()
+        filename = os.path.basename(raw_name)[:80] or "masaken.apk"
+        if not filename.lower().endswith(".apk"):
+            self.send_json(415, {"error": {"message": "يرجى رفع ملف بصيغة .apk صالحة"}})
+            return
+
+        tmp_path = APK_FILE_PATH + ".tmp"
+        if not self.write_request_body_to_file(tmp_path, length):
+            return
+        os.replace(tmp_path, APK_FILE_PATH)
+
+        with db_lock:
+            data = load_db()
+            data["apk_info"] = {
+                "filename": filename,
+                "size": length,
+                "updated_at": now_iso(),
+            }
+            save_db(data)
+            payload = get_apk_info_payload(data)
+        self.send_json(200, payload)
 
     def serve_channels_m3u(self, head_only: bool = False):
         """Build #EXTM3U playlist placing Hotel Channel #1 permanently first, then cached IPTV."""
@@ -761,8 +886,30 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_json(200, {"ok": True, "media": meta})
 
     def handle_api_get(self, path: str, qs: dict):
-        if path == "/api/health":
-            self.send_json(200, {"ok": True, "mode": "local", "time": now_iso()})
+        if path in ("/api/health", "/api/discover"):
+            self.send_json(
+                200,
+                {
+                    "ok": True,
+                    "service": SERVICE_SIGNATURE,
+                    "hostname": socket.gethostname(),
+                    "mode": "local",
+                    "apk_available": os.path.exists(APK_FILE_PATH),
+                    "apk_url": "/masaken.apk",
+                    "time": now_iso(),
+                },
+            )
+            return
+
+        if path == "/api/apk/info":
+            with db_lock:
+                data = load_db()
+                payload = get_apk_info_payload(data)
+            self.send_json(200, payload)
+            return
+
+        if path == "/api/apk/download":
+            self.serve_apk_file(head_only=False)
             return
 
         if path == "/api/settings":
@@ -1047,12 +1194,12 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
                 row = {
                     "room_number": room,
                     "full_name": full_name,
-                    "cast_pin": gen_pin(),
+                    "cast_pin": gen_pin(old_pin),
                     "preferred_lang": lang,
                 }
                 data["guests"][room] = row
                 save_db(data)
-            clear_room_media(room, notify_pin=old_pin)
+            clear_room_media(room, notify_pin=old_pin, full_reset=True)
             self.send_json(200, {"data": row, "error": None})
             return
 
@@ -1069,12 +1216,12 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
                 row = {
                     "room_number": room,
                     "full_name": "",
-                    "cast_pin": gen_pin(),
+                    "cast_pin": gen_pin(old_pin),
                     "preferred_lang": old.get("preferred_lang", "ar"),
                 }
                 data["guests"][room] = row
                 save_db(data)
-            clear_room_media(room, notify_pin=old_pin)
+            clear_room_media(room, notify_pin=old_pin, full_reset=True)
             self.send_json(200, {"data": row, "error": None})
             return
 
@@ -1222,6 +1369,7 @@ def main():
 
     signal.signal(signal.SIGTERM, shutdown_handler)
     start_cache_sync_worker()
+    start_udp_discovery_responder(port)
     server = http.server.ThreadingHTTPServer((bind_host, port), HotelRequestHandler)
     print(f"Masaken Al-Nuzha Local Server running on http://{bind_host}:{port}/", flush=True)
     if PUBLIC_URL:

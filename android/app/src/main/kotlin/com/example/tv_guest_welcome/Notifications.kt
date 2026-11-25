@@ -197,11 +197,12 @@ object Notifications {
 
     private fun resolveLocalServerBase(context: Context): String? {
         val prefs = context.getSharedPreferences(SetupActivity.PREFS_TV, Context.MODE_PRIVATE)
-        val raw = prefs.getString(SetupActivity.KEY_PORTAL_URL, null)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val raw = prefs.getString(SetupActivity.KEY_PORTAL_URL, SetupActivity.DEFAULT_PORTAL_URL)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: SetupActivity.DEFAULT_PORTAL_URL
         if (raw.contains("github.io", ignoreCase = true)) return null
-        val qIdx = raw.indexOf('?')
-        val clean = if (qIdx >= 0) raw.substring(0, qIdx) else raw
-        return if (clean.endsWith("/")) clean else "$clean/"
+        return ServerDiscovery.normalizePortalUrl(raw)
     }
 
     private fun fetchLatestAnchor(context: Context, roomNumber: String?): String? {

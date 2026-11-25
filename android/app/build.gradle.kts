@@ -1,7 +1,30 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val keystorePropsFile = rootProject.file("keystore/keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { load(it) }
+    }
+}
+
+val envKeystorePath = System.getenv("MASAKEN_KEYSTORE_PATH")?.trim().orEmpty()
+val resolvedStoreFile = when {
+    envKeystorePath.isNotEmpty() && File(envKeystorePath).exists() -> File(envKeystorePath)
+    keystoreProps.getProperty("storeFile") != null -> file(keystoreProps.getProperty("storeFile"))
+    else -> null
+}?.takeIf { it.exists() }
+
+val resolvedStorePassword = System.getenv("MASAKEN_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+    ?: keystoreProps.getProperty("storePassword")
+val resolvedKeyAlias = System.getenv("MASAKEN_KEY_ALIAS")?.takeIf { it.isNotBlank() }
+    ?: keystoreProps.getProperty("keyAlias")
+val resolvedKeyPassword = System.getenv("MASAKEN_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+    ?: keystoreProps.getProperty("keyPassword")
 
 android {
     namespace = "com.example.tv_guest_welcome"
@@ -11,8 +34,8 @@ android {
         applicationId = "com.example.tv_guest_welcome"
         minSdk = 21
         targetSdk = 34
-        versionCode = 17
-        versionName = "3.2"
+        versionCode = 18
+        versionName = "3.3"
     }
 
     signingConfigs {
@@ -20,12 +43,27 @@ android {
             enableV1Signing = true
             enableV2Signing = true
         }
+        if (resolvedStoreFile != null && !resolvedStorePassword.isNullOrBlank() && !resolvedKeyAlias.isNullOrBlank()) {
+            create("masaken") {
+                storeFile = resolvedStoreFile
+                storePassword = resolvedStorePassword
+                keyAlias = resolvedKeyAlias
+                keyPassword = resolvedKeyPassword ?: resolvedStorePassword
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
     }
 
+    val activeSigning = signingConfigs.findByName("masaken") ?: signingConfigs.getByName("debug")
+
     buildTypes {
+        debug {
+            signingConfig = activeSigning
+        }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = activeSigning
         }
     }
     compileOptions {

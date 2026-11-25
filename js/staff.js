@@ -489,6 +489,64 @@
     }
 
     /* --- Tab 5: Hotel Settings & Security --- */
+    function renderApkInfo(info) {
+        var metaEl = $('apkMetaText');
+        var linkEl = $('apkDownloadLink');
+        if (!metaEl) return;
+        if (!info || !info.available) {
+            metaEl.innerText = 'لا توجد نسخة APK مرفوعة بعد — ارفع ملف التطبيق ليكون متاحاً على /masaken.apk.';
+            if (linkEl) linkEl.style.opacity = '0.5';
+            return;
+        }
+        var mb = ((Number(info.size) || 0) / (1024 * 1024)).toFixed(1);
+        metaEl.innerText = 'متوفر على السيرفر (' + mb + ' MB) • رابط التثبيت للشاشات: ' + global.location.origin + '/masaken.apk';
+        if (linkEl) {
+            linkEl.style.opacity = '1';
+            linkEl.href = '/masaken.apk?t=' + Date.now();
+        }
+    }
+
+    async function loadApkInfo() {
+        if (!db.getLocalApkInfo) return;
+        var info = await db.getLocalApkInfo();
+        renderApkInfo(info);
+    }
+
+    async function uploadApkFile(file) {
+        if (!file || !db.uploadLocalApk) return;
+        if (!/\.apk$/i.test(file.name || '')) {
+            showStaffToast('يرجى اختيار ملف بصيغة .apk', true);
+            return;
+        }
+        var btn = $('apkUploadBtn');
+        var progWrap = $('apkProgressWrap');
+        var progBar = $('apkProgressBar');
+        var progTxt = $('apkProgressText');
+        var status = $('apkUploadStatus');
+        if (btn) btn.disabled = true;
+        if (progWrap) progWrap.style.display = 'flex';
+        if (progBar) progBar.style.width = '0%';
+        if (progTxt) progTxt.innerText = '0%';
+        if (status) status.innerText = 'جارٍ رفع نسخة APK إلى السيرفر...';
+
+        var res = await db.uploadLocalApk(state.pin, file, file.name, function (pct) {
+            if (progBar) progBar.style.width = pct + '%';
+            if (progTxt) progTxt.innerText = pct + '%';
+        });
+        if (btn) btn.disabled = false;
+        if (progWrap) progWrap.style.display = 'none';
+
+        if (res && res.ok) {
+            if (status) status.innerText = 'تم حفظ نسخة APK على /masaken.apk بنجاح';
+            renderApkInfo(res);
+            showStaffToast('تم تحديث ملف APK المحلي للشاشات بنجاح!', false);
+        } else {
+            var msg = (res && res.error && res.error.message) || 'تعذر رفع ملف APK';
+            if (status) status.innerText = msg;
+            showStaffToast(msg, true);
+        }
+    }
+
     async function loadSettingsForm() {
         var h = cfg.HOTEL_DEFAULTS;
         var remote = await db.fetchHotelSettings();
@@ -498,6 +556,7 @@
         if ($('setBreakfast')) $('setBreakfast').value = (remote && remote.breakfast_hours) || h.breakfastHours;
         if ($('setCheckout')) $('setCheckout').value = (remote && remote.checkout_time) || h.checkoutTime;
         if ($('setIptvM3u')) $('setIptvM3u').value = (remote && remote.iptv_m3u_url) || '';
+        loadApkInfo();
     }
 
     async function saveHotelSettings() {
@@ -702,6 +761,16 @@
             }
             if ($('saveSettingsBtn')) $('saveSettingsBtn').addEventListener('click', saveHotelSettings);
             if ($('changePinBtn')) $('changePinBtn').addEventListener('click', changeStaffPin);
+            if ($('apkUploadBtn') && $('apkFileInput')) {
+                $('apkUploadBtn').addEventListener('click', function () {
+                    $('apkFileInput').click();
+                });
+                $('apkFileInput').addEventListener('change', function () {
+                    var f = $('apkFileInput').files && $('apkFileInput').files[0];
+                    $('apkFileInput').value = '';
+                    if (f) uploadApkFile(f);
+                });
+            }
             if ($('staffLogoutBtn')) $('staffLogoutBtn').addEventListener('click', logout);
 
             try {

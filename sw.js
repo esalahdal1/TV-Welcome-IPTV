@@ -1,27 +1,27 @@
-const CACHE_NAME = 'tvip-masaken-v11';
+const CACHE_NAME = 'tvip-masaken-v12';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './vendor/qrcode/qrcode.min.js?v=36',
-  './vendor/fontawesome/css/all.min.css?v=36',
+  './vendor/qrcode/qrcode.min.js?v=37',
+  './vendor/fontawesome/css/all.min.css?v=37',
   './vendor/fonts/cairo.css?v=36',
-  './css/app.css?v=36',
+  './css/app.css?v=37',
   './3%20small.png',
-  './js/config.js?v=36',
-  './js/i18n.js?v=36',
-  './js/supabase-client.js?v=36',
-  './js/webrtc-cast.js?v=36',
-  './js/widgets.js?v=36',
-  './js/portal.js?v=36',
-  './js/mobile-portal.js?v=36',
-  './js/lobby.js?v=36',
-  './js/staff.js?v=36',
-  './js/main.js?v=36'
+  './js/config.js?v=37',
+  './js/i18n.js?v=37',
+  './js/supabase-client.js?v=37',
+  './js/webrtc-cast.js?v=37',
+  './js/widgets.js?v=37',
+  './js/portal.js?v=37',
+  './js/mobile-portal.js?v=37',
+  './js/lobby.js?v=37',
+  './js/staff.js?v=37',
+  './js/main.js?v=37'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => {})
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => { })
   );
   self.skipWaiting();
 });
@@ -41,8 +41,10 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Never cache dynamic Supabase or live weather/prayer API calls in SW
+  // Never cache dynamic API, media stream, or APK installer endpoints in SW
   if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname === '/masaken.apk' ||
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('open-meteo.com') ||
     url.hostname.includes('aladhan.com')
@@ -57,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res && res.ok) {
             const copy = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+            caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => { });
           }
           return res;
         })
@@ -73,7 +75,7 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res && res.ok) {
             const copy = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+            caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => { });
           }
           return res;
         })

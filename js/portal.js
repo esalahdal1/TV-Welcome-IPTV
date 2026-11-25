@@ -203,6 +203,8 @@
         }
 
         var prevPin = state.roomPin;
+        var prevName = state.guestNameValue;
+        var wasLoaded = state.hasLoadedGuest;
         var cacheKey = 'GUEST_NAME_CACHE_' + cfg.ROOM;
         var profile = await db.fetchGuestProfile(cfg.ROOM);
 
@@ -237,7 +239,10 @@
         state.hasLoadedGuest = true;
         renderGuestName();
 
-        if (prevPin !== state.roomPin) {
+        if (prevPin !== state.roomPin || (wasLoaded && prevName && !state.guestNameValue)) {
+            if (wasLoaded) {
+                clearCastStage();
+            }
             syncWebrtcReceiver();
             if (state.activeOverlay === 'cast') renderCastModal();
             if (state.activeOverlay === 'guide') renderGuideModal();
@@ -401,6 +406,11 @@
             },
             onMediaStop: function () {
                 if (state.castMode === 'media') clearCastStage();
+            },
+            onRoomReset: function () {
+                clearCastStage();
+                state.manualLangOverride = false;
+                fetchGuest();
             }
         });
         if (db && db.getCurrentRoomMedia) {
@@ -1014,10 +1024,11 @@
             setDpadDownBlocked(false);
             bindEvents();
 
-            syncWebrtcReceiver();
             fetchHotelSettings();
-            fetchGuest();
-            global.setInterval(fetchGuest, 30000);
+            fetchGuest().finally(function () {
+                syncWebrtcReceiver();
+            });
+            global.setInterval(fetchGuest, 10000);
             global.setInterval(fetchHotelSettings, 120000);
             global.setTimeout(pollNotificationsOnce, 3000);
             global.setInterval(pollNotificationsOnce, 20000);
