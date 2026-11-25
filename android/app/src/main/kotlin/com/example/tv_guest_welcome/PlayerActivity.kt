@@ -121,6 +121,7 @@ class PlayerActivity : AppCompatActivity() {
         applyImmersiveUi()
         Notifications.bindForeground(window) { }
         Notifications.pollAsync(this)
+        TvMonitor.onActivityResumed(this, "live_tv")
     }
 
     override fun onPause() {

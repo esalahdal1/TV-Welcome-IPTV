@@ -134,6 +134,7 @@ class SetupActivity : AppCompatActivity() {
         Notifications.bindForeground(window) { }
         Notifications.pollAsync(this)
         refreshOverlayButtonState()
+        TvMonitor.onActivityResumed(this, "setup")
     }
 
     override fun onPause() {

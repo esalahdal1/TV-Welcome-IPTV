@@ -163,6 +163,7 @@ class ChannelsActivity : AppCompatActivity() {
         super.onResume()
         Notifications.bindForeground(window) { }
         Notifications.pollAsync(this)
+        TvMonitor.onActivityResumed(this, "channels")
     }
 
     override fun onPause() {

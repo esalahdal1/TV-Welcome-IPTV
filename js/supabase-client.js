@@ -411,6 +411,55 @@
             return await xhrUploadBinary('/api/staff/apk/upload?' + q.toString(), fileBlob, onProgress);
         },
 
+        sendTvHeartbeat: async function (payload) {
+            if (!(await detectLocalBackend())) return null;
+            var res = await postApi('/api/tv/heartbeat', payload || {}, 3000);
+            return (res.ok && res.data) ? res.data : null;
+        },
+
+        staffListChannels: async function (pin) {
+            if (!(await detectLocalBackend())) return { ok: false, channels: [] };
+            var res = await postApi('/api/staff/channels/list', { pin: utils.normalizeDigits(pin || '') }, 3500);
+            return (res.ok && res.data) ? res.data : { ok: false, channels: [] };
+        },
+
+        staffSaveChannels: async function (pin, channels) {
+            if (!(await detectLocalBackend())) return { ok: false, error: { message: 'السيرفر المحلي غير متصل' } };
+            var res = await postApi('/api/staff/channels/save', { pin: utils.normalizeDigits(pin || ''), channels: channels || [] }, 4500);
+            return (res.ok && res.data) ? res.data : { ok: false, error: (res.data && res.data.error) || { message: 'تعذر حفظ القنوات' } };
+        },
+
+        staffResetChannels: async function (pin) {
+            if (!(await detectLocalBackend())) return { ok: false, error: { message: 'السيرفر المحلي غير متصل' } };
+            var res = await postApi('/api/staff/channels/reset', { pin: utils.normalizeDigits(pin || '') }, 3500);
+            return (res.ok && res.data) ? res.data : { ok: false, error: (res.data && res.data.error) || { message: 'تعذر استعادة القنوات' } };
+        },
+
+        staffListScreens: async function (pin) {
+            if (!(await detectLocalBackend())) return { ok: false, screens: [], online_count: 0, total_count: 0 };
+            var res = await postApi('/api/staff/screens', { pin: utils.normalizeDigits(pin || '') }, 3500);
+            return (res.ok && res.data) ? res.data : { ok: false, screens: [], online_count: 0, total_count: 0 };
+        },
+
+        staffSendScreenCommand: async function (pin, target, command) {
+            if (!(await detectLocalBackend())) return { ok: false, error: { message: 'السيرفر المحلي غير متصل' } };
+            var res = await postApi('/api/staff/screens/command', {
+                pin: utils.normalizeDigits(pin || ''),
+                target: target,
+                command: command
+            }, 3500);
+            return (res.ok && res.data) ? res.data : { ok: false, error: (res.data && res.data.error) || { message: 'تعذر إرسال الأمر' } };
+        },
+
+        staffRemoveScreen: async function (pin, screenId) {
+            if (!(await detectLocalBackend())) return { ok: false };
+            var res = await postApi('/api/staff/screens/remove', {
+                pin: utils.normalizeDigits(pin || ''),
+                screen_id: screenId
+            }, 3500);
+            return (res.ok && res.data) ? res.data : { ok: false };
+        },
+
         getCurrentRoomMedia: async function (room, pin) {
             if (!(await detectLocalBackend())) return { active: false, media: null };
             var q = new URLSearchParams({

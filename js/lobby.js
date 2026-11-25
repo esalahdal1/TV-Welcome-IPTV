@@ -246,6 +246,44 @@
         });
     }
 
+    async function sendLobbyWebHeartbeat() {
+        if (!db || !db.sendTvHeartbeat) return;
+        try {
+            if (global.TVIP && typeof global.TVIP.hasNativeMonitor === 'function' && global.TVIP.hasNativeMonitor()) {
+                return;
+            }
+        } catch (e) {}
+        var devId = '';
+        try {
+            devId = global.localStorage.getItem('TV_WEB_DEVICE_ID') || '';
+            if (!devId) {
+                devId = 'lobby-' + Math.random().toString(36).slice(2, 10);
+                global.localStorage.setItem('TV_WEB_DEVICE_ID', devId);
+            }
+        } catch (e2) { devId = 'lobby-web'; }
+        var res = await db.sendTvHeartbeat({
+            room: '',
+            mode: 'lobby',
+            screen_state: 'lobby',
+            app_version: 'web',
+            platform: global.TVIP ? 'android_tv' : 'web',
+            device_id: devId
+        });
+        if (res && Array.isArray(res.commands)) {
+            res.commands.forEach(function (item) {
+                var cmd = item && item.command ? String(item.command) : '';
+                if (cmd === 'reload') {
+                    if (global.TVIP && typeof global.TVIP.reloadPortal === 'function') global.TVIP.reloadPortal();
+                    else global.location.reload();
+                } else if (cmd === 'open_tv' && global.TVIP && typeof global.TVIP.openLiveTv === 'function') {
+                    global.TVIP.openLiveTv();
+                } else if (cmd === 'update_apk' && global.TVIP && typeof global.TVIP.installAppUpdate === 'function') {
+                    global.TVIP.installAppUpdate();
+                }
+            });
+        }
+    }
+
     TVApp.lobby = {
         init: function () {
             i18n.setLang(i18n.getLang());
@@ -269,10 +307,12 @@
             bindEvents();
             loadHotelSettings();
             pollGlobalAnnouncements();
+            sendLobbyWebHeartbeat();
 
             state.rotateTimer = global.setInterval(function () {
                 nextSlide(1);
             }, 9000);
+            global.setInterval(sendLobbyWebHeartbeat, 14000);
             global.setInterval(loadHotelSettings, 120000);
             global.setInterval(pollGlobalAnnouncements, 25000);
         }

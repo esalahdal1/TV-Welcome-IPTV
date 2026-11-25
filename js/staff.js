@@ -14,6 +14,8 @@
         roomSearch: '',
         roomFilter: 'all', // 'all' | 'occupied' | 'vacant'
         guests: [],
+        screens: [],
+        iptvChannels: [],
         rpcActive: false,
         soundEnabled: true,
         knownPendingIds: null,
@@ -83,11 +85,135 @@
             pane.style.display = pane.getAttribute('data-staff-pane') === tab ? 'grid' : 'none';
         });
 
-        if (tab === 'rooms') loadRooms();
+        if (tab === 'rooms') {
+            loadRooms();
+            loadScreensMonitor();
+        }
+        if (tab === 'screens') loadScreensMonitor();
         if (tab === 'requests') loadRequests();
         if (tab === 'notifications') loadNotificationsFeed();
         if (tab === 'channel1') loadChannel1Panel();
         if (tab === 'settings') loadSettingsForm();
+    }
+
+    function describeScreenActivity(code) {
+        var map = {
+            portal: 'واجهة الترحيب',
+            live_tv: 'يشاهد القنوات',
+            channels: 'قائمة القنوات',
+            cast_media: 'بث وسائط من الجوال',
+            cast_webrtc: 'مشاركة شاشة نشطة',
+            lobby: 'شاشة صالة الفندق',
+            setup: 'شاشة الإعداد',
+            background: 'يعمل بالخلفية'
+        };
+        return map[code] || 'متصل';
+    }
+
+    function formatAgo(sec) {
+        var s = Number(sec) || 0;
+        if (s < 10) return 'الآن';
+        if (s < 60) return 'منذ ' + s + ' ث';
+        var m = Math.floor(s / 60);
+        if (m < 60) return 'منذ ' + m + ' د';
+        var h = Math.floor(m / 60);
+        if (h < 24) return 'منذ ' + h + ' س';
+        return 'منذ ' + Math.floor(h / 24) + ' يوم';
+    }
+
+    async function loadScreensMonitor() {
+        if (!db.staffListScreens || !state.pin) return;
+        var res = await db.staffListScreens(state.pin);
+        if (!res || !res.ok) return;
+        state.screens = Array.isArray(res.screens) ? res.screens : [];
+        var badge = $('staffOnlineScreensBadge');
+        if (badge) {
+            badge.innerText = String(res.online_count || 0);
+            badge.style.display = (res.total_count > 0) ? 'inline-flex' : 'none';
+        }
+        if (state.activeTab === 'screens') renderScreensMonitor(res);
+        if (state.activeTab === 'rooms') renderRoomsList();
+    }
+
+    async function sendRemoteCmd(target, command, label) {
+        if (!db.staffSendScreenCommand) return;
+        var res = await db.staffSendScreenCommand(state.pin, target, command);
+        if (res && res.ok) {
+            showStaffToast('تم إرسال أمر «' + label + '» إلى ' + (target === 'all' ? ('جميع الشاشات (' + (res.queued || 0) + ')') : target), false);
+            global.setTimeout(loadScreensMonitor, 2200);
+        } else {
+            showStaffToast((res && res.error && res.error.message) || 'تعذر إرسال الأمر', true);
+        }
+    }
+
+    function renderScreensMonitor(res) {
+        var box = $('staffScreensList');
+        var statsEl = $('staffScreensStats');
+        if (!box) return;
+        var rows = state.screens;
+        var onlineCount = res && typeof res.online_count === 'number' ? res.online_count : rows.filter(function (s) { return s.online; }).length;
+        if (statsEl) {
+            statsEl.innerText = 'الشاشات المسجلة: ' + rows.length + ' • متصلة الآن: ' + onlineCount + ' • غير متصلة: ' + Math.max(0, rows.length - onlineCount);
+        }
+        if (rows.length === 0) {
+            box.innerHTML = '<div class="staff-empty">لم تتصل أي شاشة بعد. ستظهر هنا تلقائياً فور فتح تطبيق التلفزيون على أي شاشة في الشبكة.</div>';
+            return;
+        }
+        box.innerHTML = rows.map(function (s) {
+            var sid = String(s.screen_id || '');
+            var isLobby = s.mode === 'lobby';
+            var title = isLobby ? 'شاشة صالة / استقبال' : ('غرفة ' + (s.room || 'غير معيّنة'));
+            var guestTxt = isLobby ? 'وضع الصالات العام' : (s.guest_name ? ('النزيل: ' + s.guest_name) : 'غرفة شاغرة');
+            var actLabel = describeScreenActivity(s.screen_state);
+            var statusPill = s.online
+                ? '<span class="staff-tv-pill is-online">متصل • ' + escapeHtml(actLabel) + '</span>'
+                : '<span class="staff-tv-pill is-offline">غير متصل</span>';
+            var dotCls = s.online ? 'staff-dot is-online' : 'staff-dot is-offline';
+            var cardCls = s.online ? 'staff-screen-card is-online' : 'staff-screen-card';
+            var ver = s.app_version && s.app_version !== 'web' ? ('v' + s.app_version.replace(/^v/i, '')) : 'متصفح ويب';
+
+            return '<div class="' + cardCls + '">' +
+                '<div class="staff-screen-head">' +
+                '<div class="staff-screen-title"><span class="' + dotCls + '"></span>' + escapeHtml(title) + '</div>' +
+                statusPill +
+                '</div>' +
+                '<div class="staff-screen-meta">' +
+                escapeHtml(guestTxt) + '<br>' +
+                'IP: <strong dir="ltr">' + escapeHtml(s.ip || '—') + '</strong> • الإصدار: <strong>' + escapeHtml(ver) + '</strong> • آخر نبضة: ' + escapeHtml(formatAgo(s.seconds_ago)) +
+                '</div>' +
+                '<div class="staff-screen-btns">' +
+                '<button type="button" class="admin-btn" data-remote-sid="' + escapeHtml(sid) + '" data-remote-cmd="reload" data-remote-lbl="إعادة تحميل">إعادة تحميل</button>' +
+                '<button type="button" class="admin-btn secondary" data-remote-sid="' + escapeHtml(sid) + '" data-remote-cmd="open_tv" data-remote-lbl="تشغيل القنوات">تشغيل القنوات</button>' +
+                '<button type="button" class="admin-btn secondary" data-remote-sid="' + escapeHtml(sid) + '" data-remote-cmd="open_portal" data-remote-lbl="واجهة الترحيب">واجهة الترحيب</button>' +
+                '<button type="button" class="admin-btn secondary" data-remote-sid="' + escapeHtml(sid) + '" data-remote-cmd="update_apk" data-remote-lbl="تحديث التطبيق">تحديث APK</button>' +
+                (!isLobby && s.room ? '<button type="button" class="admin-btn secondary" data-screen-notify="' + escapeHtml(s.room) + '">إشعار</button>' : '') +
+                (!s.online ? '<button type="button" class="admin-btn danger" data-remove-sid="' + escapeHtml(sid) + '">حذف</button>' : '') +
+                '</div>' +
+                '</div>';
+        }).join('');
+
+        box.querySelectorAll('button[data-remote-sid]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                sendRemoteCmd(
+                    btn.getAttribute('data-remote-sid') || '',
+                    btn.getAttribute('data-remote-cmd') || 'reload',
+                    btn.getAttribute('data-remote-lbl') || 'أمر'
+                );
+            });
+        });
+        box.querySelectorAll('button[data-screen-notify]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openNotifyModal(btn.getAttribute('data-screen-notify') || '');
+            });
+        });
+        box.querySelectorAll('button[data-remove-sid]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var sid = btn.getAttribute('data-remove-sid') || '';
+                if (!sid || !db.staffRemoveScreen) return;
+                await db.staffRemoveScreen(state.pin, sid);
+                loadScreensMonitor();
+            });
+        });
     }
 
     /* --- Tab 1: Rooms & Check-in / Check-out --- */
@@ -146,11 +272,18 @@
             var badge = isOccupied
                 ? '<span class="staff-badge is-occupied">مشغولة</span>'
                 : '<span class="staff-badge is-vacant">شاغرة</span>';
+            var scr = state.screens.find(function (s) { return s.mode === 'room' && String(s.room) === room; });
+            var tvBadge = '';
+            if (scr) {
+                tvBadge = scr.online
+                    ? ' <span class="staff-tv-pill is-online"><span class="staff-dot is-online"></span>الشاشة متصلة (' + escapeHtml(describeScreenActivity(scr.screen_state)) + ')</span>'
+                    : ' <span class="staff-tv-pill is-offline">الشاشة غير متصلة</span>';
+            }
 
             return '<div class="staff-room-row">' +
                 '<div class="staff-room-num">' + escapeHtml(room) + '</div>' +
                 '<div class="staff-room-guest">' +
-                '<div class="staff-guest-title">' + escapeHtml(isOccupied ? name : 'غرفة شاغرة') + ' ' + badge + '</div>' +
+                '<div class="staff-guest-title">' + escapeHtml(isOccupied ? name : 'غرفة شاغرة') + ' ' + badge + tvBadge + '</div>' +
                 '<div class="staff-guest-meta">PIN: <strong>' + escapeHtml(pin) + '</strong> • اللغة: ' + escapeHtml(lang) + '</div>' +
                 '</div>' +
                 '<div class="staff-row-actions">' +
@@ -436,9 +569,100 @@
         }
     }
 
+    async function loadIptvChannels() {
+        if (!db.staffListChannels || !state.pin) return;
+        var res = await db.staffListChannels(state.pin);
+        if (res && res.ok && Array.isArray(res.channels)) {
+            state.iptvChannels = res.channels;
+            renderIptvChannels();
+        }
+    }
+
+    async function persistIptvChannels(toastMsg) {
+        if (!db.staffSaveChannels) return;
+        var res = await db.staffSaveChannels(state.pin, state.iptvChannels);
+        if (res && res.ok && Array.isArray(res.channels)) {
+            state.iptvChannels = res.channels;
+            renderIptvChannels();
+            if (toastMsg) showStaffToast(toastMsg, false);
+        } else {
+            showStaffToast((res && res.error && res.error.message) || 'تعذر حفظ القنوات', true);
+        }
+    }
+
+    function renderIptvChannels() {
+        var box = $('iptvChannelsList');
+        var sum = $('iptvCountSummary');
+        if (!box) return;
+        var enabledCount = state.iptvChannels.filter(function (c) { return c.enabled !== false; }).length;
+        if (sum) {
+            sum.innerText = 'القنوات الفضائية المرتبة: ' + state.iptvChannels.length + ' قناة (المفعّل منها على الشاشات: ' + enabledCount + ' قناة بعد قناة الفندق #1).';
+        }
+        if (state.iptvChannels.length === 0) {
+            box.innerHTML = '<div class="staff-empty">لا توجد قنوات مضافة. اضغط «استعادة القائمة الافتراضية» لتحميل القنوات السعودية والعربية.</div>';
+            return;
+        }
+        box.innerHTML = state.iptvChannels.map(function (c, idx) {
+            var enabled = c.enabled !== false;
+            var chNum = idx + 2;
+            var numStr = '#' + (chNum < 10 ? '0' + chNum : chNum);
+            return '<div class="staff-iptv-row' + (enabled ? '' : ' is-disabled') + '">' +
+                '<div class="staff-iptv-num">' + numStr + '</div>' +
+                '<div class="staff-iptv-info">' +
+                '<div class="staff-iptv-name">' + escapeHtml(c.name || '') + ' <span class="staff-iptv-group">' + escapeHtml(c.group || 'عامة') + '</span></div>' +
+                '<div class="staff-iptv-url">' + escapeHtml(c.url || '') + '</div>' +
+                '</div>' +
+                '<div class="staff-iptv-actions">' +
+                '<button type="button" class="admin-btn ' + (enabled ? '' : 'secondary') + '" data-ch-toggle="' + idx + '">' + (enabled ? 'مفعّلة ✓' : 'مخفية') + '</button>' +
+                '<button type="button" class="admin-btn secondary" data-ch-up="' + idx + '"' + (idx === 0 ? ' disabled' : '') + '>▲</button>' +
+                '<button type="button" class="admin-btn secondary" data-ch-down="' + idx + '"' + (idx === state.iptvChannels.length - 1 ? ' disabled' : '') + '>▼</button>' +
+                '<button type="button" class="admin-btn danger" data-ch-del="' + idx + '">حذف</button>' +
+                '</div>' +
+                '</div>';
+        }).join('');
+
+        box.querySelectorAll('button[data-ch-toggle]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var i = Number(btn.getAttribute('data-ch-toggle'));
+                if (!state.iptvChannels[i]) return;
+                state.iptvChannels[i].enabled = state.iptvChannels[i].enabled === false;
+                persistIptvChannels('تم تحديث حالة القناة');
+            });
+        });
+        box.querySelectorAll('button[data-ch-up]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var i = Number(btn.getAttribute('data-ch-up'));
+                if (i <= 0 || !state.iptvChannels[i]) return;
+                var tmp = state.iptvChannels[i - 1];
+                state.iptvChannels[i - 1] = state.iptvChannels[i];
+                state.iptvChannels[i] = tmp;
+                persistIptvChannels('تم تقديم ترتيب القناة');
+            });
+        });
+        box.querySelectorAll('button[data-ch-down]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var i = Number(btn.getAttribute('data-ch-down'));
+                if (i < 0 || i >= state.iptvChannels.length - 1) return;
+                var tmp = state.iptvChannels[i + 1];
+                state.iptvChannels[i + 1] = state.iptvChannels[i];
+                state.iptvChannels[i] = tmp;
+                persistIptvChannels('تم تأخير ترتيب القناة');
+            });
+        });
+        box.querySelectorAll('button[data-ch-del]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var i = Number(btn.getAttribute('data-ch-del'));
+                if (!state.iptvChannels[i]) return;
+                state.iptvChannels.splice(i, 1);
+                persistIptvChannels('تم حذف القناة من القائمة');
+            });
+        });
+    }
+
     async function loadChannel1Panel() {
         var status = $('ch1Status');
         if (status) status.innerText = 'جارٍ التحقق من حالة القناة الأولى...';
+        loadIptvChannels();
         if (!db.getHotelChannel1Info) return;
         var res = await db.getHotelChannel1Info();
         if (!res) {
@@ -625,11 +849,13 @@
         updateSecurityBadge();
         setTab(state.activeTab);
         refreshPendingBadgeAndAlerts();
+        loadScreensMonitor();
         if (!state.pollTimer) {
             state.pollTimer = global.setInterval(function () {
                 refreshPendingBadgeAndAlerts();
+                loadScreensMonitor();
                 if (state.activeTab === 'rooms') loadRooms();
-            }, 12000);
+            }, 8000);
         }
     }
 
@@ -756,6 +982,50 @@
                         showStaffToast('تم حذف فيديو القناة رقم 1', false);
                     } else {
                         showStaffToast((res && res.error && res.error.message) || 'تعذر الحذف', true);
+                    }
+                });
+            }
+            document.querySelectorAll('[data-remote-all]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var cmd = btn.getAttribute('data-remote-all') || 'reload';
+                    var lbl = (btn.textContent || '').trim();
+                    if (cmd === 'update_apk' && !global.confirm('إرسال أمر تحديث التطبيق (APK) لجميع الشاشات المتصلة الآن؟')) return;
+                    sendRemoteCmd('all', cmd, lbl);
+                });
+            });
+            if ($('iptvAddBtn')) {
+                $('iptvAddBtn').addEventListener('click', function () {
+                    var nameEl = $('iptvAddName');
+                    var grpEl = $('iptvAddGroup');
+                    var urlEl = $('iptvAddUrl');
+                    var nm = (nameEl && nameEl.value || '').trim();
+                    var grp = (grpEl && grpEl.value || 'القنوات السعودية').trim();
+                    var u = (urlEl && urlEl.value || '').trim();
+                    if (!nm || !/^https?:\/\/|^\//i.test(u)) {
+                        showStaffToast('أدخل اسم القناة ورابط بث صحيح يبدأ بـ http أو https', true);
+                        return;
+                    }
+                    state.iptvChannels.push({
+                        id: 'custom_' + Date.now().toString(36),
+                        name: nm,
+                        group: grp,
+                        url: u,
+                        enabled: true
+                    });
+                    if (nameEl) nameEl.value = '';
+                    if (urlEl) urlEl.value = '';
+                    persistIptvChannels('تمت إضافة القناة إلى قائمة الفندق');
+                });
+            }
+            if ($('iptvResetDefaultBtn')) {
+                $('iptvResetDefaultBtn').addEventListener('click', async function () {
+                    if (!global.confirm('استعادة الباقة السعودية والعربية الافتراضية (24 قناة)؟')) return;
+                    if (!db.staffResetChannels) return;
+                    var res = await db.staffResetChannels(state.pin);
+                    if (res && res.ok && Array.isArray(res.channels)) {
+                        state.iptvChannels = res.channels;
+                        renderIptvChannels();
+                        showStaffToast('تمت استعادة القنوات السعودية والعربية الافتراضية', false);
                     }
                 });
             }

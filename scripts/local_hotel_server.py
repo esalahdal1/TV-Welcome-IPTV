@@ -39,7 +39,192 @@ os.makedirs(APK_DIR, exist_ok=True)
 
 SERVICE_SIGNATURE = "masaken-tvip"
 DISCOVERY_UDP_PORT = 8898
-DEFAULT_UPSTREAM_M3U = "https://iptv-org.github.io/iptv/index.m3u"
+ONLINE_TTL_SEC = 45
+ALLOWED_TV_COMMANDS = {"reload", "open_tv", "open_portal", "stop_cast", "update_apk"}
+DEFAULT_UPSTREAM_M3U = ""
+
+DEFAULT_HOTEL_CHANNELS = [
+    # 1. القنوات الدينية (مكة والمدينة)
+    {
+        "id": "sa_quran",
+        "name": "قناة القرآن الكريم — مكة المكرمة",
+        "group": "القنوات الدينية",
+        "url": "http://m.live.net.sa:1935/live/quran/gmswf.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_sunnah",
+        "name": "قناة السنة النبوية — المدينة المنورة",
+        "group": "القنوات الدينية",
+        "url": "http://m.live.net.sa:1935/live/sunnah/gmswf.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_quran_radio",
+        "name": "إذاعة القرآن الكريم المرئية — السعودية",
+        "group": "القنوات الدينية",
+        "url": "https://live.kwikmotion.com/sbrksaquranradiolive/srpksaquranradio/playlist.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_iqraa_quran",
+        "name": "قناة اقرأ للقرآن الكريم",
+        "group": "القنوات الدينية",
+        "url": "https://playlist.fasttvcdn.com/pl/dlkqw1ftuvuuzkcb4pxdcg/Iqraafasttv2/playlist.m3u8",
+        "enabled": True,
+    },
+    # 2. القنوات السعودية الرسمية
+    {
+        "id": "sa_saudiya",
+        "name": "القناة السعودية",
+        "group": "القنوات السعودية",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-saudi-tv/2ad66056b51fd8c1b624854623112e43/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_sbc",
+        "name": "قناة SBC السعودية",
+        "group": "القنوات السعودية",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-sbc/90e09c0c28db26435799b4a14892a167/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_alaan",
+        "name": "السعودية الآن",
+        "group": "القنوات السعودية",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-ksa-now/71ed3aa814c643306c0a8bc4fcc7d17f/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_thikrayat",
+        "name": "قناة ذكريات السعودية",
+        "group": "القنوات السعودية",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-thikrayat/8cfa8fe0c96275735745b89c683b27e3/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_thaqafiya",
+        "name": "القناة الثقافية السعودية",
+        "group": "القنوات السعودية",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-thaqafeyyah/28c0d2a20dbf1dc049ce15d3973f494b/index.m3u8",
+        "enabled": True,
+    },
+    # 3. القنوات الإخبارية والاقتصادية
+    {
+        "id": "sa_ekhbariya",
+        "name": "قناة الإخبارية السعودية",
+        "group": "الأخبار",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-al-ekhbaria/297b3ef1cd0633ad9cfba7473a686a06/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_hadath",
+        "name": "قناة الحدث",
+        "group": "الأخبار",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-hadath/2ff87ec4c2f3ede35295a20637d9f8fd/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_asharq",
+        "name": "قناة الشرق للأخبار",
+        "group": "الأخبار",
+        "url": "https://live-news.asharq.com/asharq.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_alarabiya_biz",
+        "name": "العربية بزنس",
+        "group": "الأخبار",
+        "url": "https://live.alarabiya.net/alarabiapublish/aswaaq.smil/playlist.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_aljazeera",
+        "name": "قناة الجزيرة",
+        "group": "الأخبار",
+        "url": "https://live-hls-apps-aja-fa.getaj.net/AJA/01.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_aljazeera_mubasher",
+        "name": "الجزيرة مباشر",
+        "group": "الأخبار",
+        "url": "https://live-hls-apps-ajm-fa.getaj.net/AJM/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_skynews",
+        "name": "سكاي نيوز عربية",
+        "group": "الأخبار",
+        "url": "https://live-stream.skynewsarabia.com/c-horizontal-channel/horizontal-stream/index.m3u8",
+        "enabled": True,
+    },
+    # 4. ترفيه وعائلة
+    {
+        "id": "ar_mbc1",
+        "name": "MBC 1",
+        "group": "ترفيه وعائلة",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-1/15cf99af5de54063fdabfefe66adc075/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_mbc_drama",
+        "name": "MBC دراما",
+        "group": "ترفيه وعائلة",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-drama/2c28a458e2f3253e678b07ac7d13fe71/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_mbc_masr",
+        "name": "MBC مصر",
+        "group": "ترفيه وعائلة",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-masr/956eac069c78a35d47245db6cdbb1575/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_mbc4",
+        "name": "MBC 4",
+        "group": "ترفيه وعائلة",
+        "url": "https://shd-gcp-live.edgenextcdn.net/live/bitmovin-mbc-4/24f134f1cd63db9346439e96b86ca6ed/index.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_rotana_cinema",
+        "name": "روتانا سينما السعودية",
+        "group": "ترفيه وعائلة",
+        "url": "https://r.eu.cdn-redge.media/livehls/oeu/mt/live/rotana_cinema/live.livx/playlist.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "sa_rotana_classic",
+        "name": "روتانا كلاسيك",
+        "group": "ترفيه وعائلة",
+        "url": "https://r.eu.cdn-redge.media/livehls/oeu/mt/live/rotana_classic/live.livx/playlist.m3u8",
+        "enabled": True,
+    },
+    # 5. وثائقية ومعرفية
+    {
+        "id": "ar_asharq_doc",
+        "name": "الشرق الوثائقية",
+        "group": "وثائقية",
+        "url": "https://svs.itworkscdn.net/asharqdocumentarylive/asharqdocumentary.smil/playlist_dvr.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_asharq_disc",
+        "name": "الشرق ديسكفري",
+        "group": "وثائقية",
+        "url": "https://svs.itworkscdn.net/asharqdiscoverylive/asharqd.smil/playlist_dvr.m3u8",
+        "enabled": True,
+    },
+    {
+        "id": "ar_aj_doc",
+        "name": "الجزيرة الوثائقية",
+        "group": "وثائقية",
+        "url": "https://live-hls-apps-ajd-fa.getaj.net/AJD/index.m3u8",
+        "enabled": True,
+    },
+]
 DEFAULT_SETTINGS = {
     "wifi_name": "Masaken_Guest",
     "wifi_pass": "Masaken@2026",
@@ -92,7 +277,14 @@ media_lock = threading.Lock()
 media_cast_state = {}
 media_seq = 0
 widgets_lock = threading.Lock()
+tv_screens_lock = threading.Lock()
+tv_screens = {}
+tv_commands = {}
 RIYADH_TZ = timezone(timedelta(hours=3))
+
+
+def copy_default_channels() -> list:
+    return [dict(ch) for ch in DEFAULT_HOTEL_CHANNELS]
 
 
 def riyadh_today():
@@ -236,11 +428,18 @@ def sync_server_caches_once(force_m3u: bool = False) -> None:
     with db_lock:
         db_data = load_db()
         custom_m3u = str((db_data.get("hotel_settings") or {}).get("iptv_m3u_url") or "").strip()
-    target_m3u = custom_m3u or DEFAULT_UPSTREAM_M3U
+    target_m3u = custom_m3u
     now_ts = time.time()
     last_m3u_sync = float(cache.get("m3u_synced_at") or 0)
     last_m3u_url = str(cache.get("m3u_source_url") or "")
-    if target_m3u and (
+    if not target_m3u:
+        if os.path.exists(CACHED_M3U_PATH):
+            try:
+                os.unlink(CACHED_M3U_PATH)
+            except OSError:
+                pass
+        cache["m3u_source_url"] = ""
+    elif (
         force_m3u
         or not os.path.exists(CACHED_M3U_PATH)
         or target_m3u != last_m3u_url
@@ -345,6 +544,8 @@ def default_db() -> dict:
         "guests": {},
         "requests": [],
         "notifications": [],
+        "iptv_channels": copy_default_channels(),
+        "screens_registry": {},
     }
 
 
@@ -363,6 +564,15 @@ def load_db() -> dict:
         data.setdefault("guests", {})
         data.setdefault("requests", [])
         data.setdefault("notifications", [])
+        changed = False
+        if "iptv_channels" not in data or not isinstance(data.get("iptv_channels"), list):
+            data["iptv_channels"] = copy_default_channels()
+            changed = True
+        if "screens_registry" not in data or not isinstance(data.get("screens_registry"), dict):
+            data["screens_registry"] = {}
+            changed = True
+        if changed:
+            save_db(data)
         return data
     except Exception:
         data = default_db()
@@ -468,8 +678,10 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
 
     def log_message(self, format, *args):
-        if args and "/api/rtc/poll" in str(args[0]):
-            return
+        if args:
+            first = str(args[0])
+            if "/api/rtc/poll" in first or "/api/tv/heartbeat" in first:
+                return
         super().log_message(format, *args)
 
     def end_headers(self):
@@ -682,13 +894,15 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_json(200, payload)
 
     def serve_channels_m3u(self, head_only: bool = False):
-        """Build #EXTM3U playlist placing Hotel Channel #1 permanently first, then cached IPTV."""
+        """Build #EXTM3U playlist placing Hotel Channel #1 first, then curated Saudi/Arabic channels."""
         host = (self.headers.get("Host") or "127.0.0.1:8899").strip()
         proto = (self.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip()
         base = f"{proto}://{host}"
         with db_lock:
             data = load_db()
             ch1 = data.get("hotel_channel1")
+            curated = list(data.get("iptv_channels") or [])
+            custom_m3u = str((data.get("hotel_settings") or {}).get("iptv_m3u_url") or "").strip()
 
         lines = ["#EXTM3U"]
         if ch1 and ch1.get("path") and os.path.exists(ch1.get("path")):
@@ -697,7 +911,20 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             lines.append(f'#EXTINF:-1 tvg-id="masaken-ch1" group-title="الفندق",{title}')
             lines.append(f"{base}/api/channel1/video?v={ver}")
 
-        if os.path.exists(CACHED_M3U_PATH):
+        for idx, item in enumerate(curated):
+            if not isinstance(item, dict) or not item.get("enabled", True):
+                continue
+            name = str(item.get("name") or "").replace("\n", " ").replace("\r", " ").strip()
+            url = str(item.get("url") or "").strip()
+            group = str(item.get("group") or "قنوات عربية").replace('"', "").replace("\n", " ").strip()
+            cid = str(item.get("id") or f"ch_{idx + 2}").replace('"', "").strip()
+            if not name or not url:
+                continue
+            full_url = f"{base}{url}" if url.startswith("/") else url
+            lines.append(f'#EXTINF:-1 tvg-id="{cid}" group-title="{group}",{name}')
+            lines.append(full_url)
+
+        if custom_m3u and os.path.exists(CACHED_M3U_PATH):
             try:
                 with open(CACHED_M3U_PATH, "r", encoding="utf-8", errors="ignore") as f:
                     for raw_line in f:
@@ -1338,6 +1565,211 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(200, {"ok": True, "active": False, "channel": None})
             return
 
+        if path == "/api/tv/heartbeat":
+            room = normalize_digits(body.get("room"))
+            mode = "lobby" if str(body.get("mode") or "").strip().lower() == "lobby" else "room"
+            screen_state = str(body.get("screen_state") or "portal").strip()[:32]
+            app_version = str(body.get("app_version") or "web").strip()[:24]
+            platform = str(body.get("platform") or "web").strip()[:24]
+            dev_id = re.sub(r"[^a-zA-Z0-9_-]", "", str(body.get("device_id") or ""))[:32]
+            reported_ip = str(body.get("local_ip") or "").strip()[:45]
+            fwd_ip = (self.headers.get("X-Real-IP") or self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+            client_ip = reported_ip or (fwd_ip if fwd_ip and fwd_ip != "127.0.0.1" else self.client_address[0])
+
+            if mode == "lobby":
+                screen_id = f"lobby-{dev_id or client_ip}"
+            elif room:
+                screen_id = f"room-{room}"
+            else:
+                screen_id = f"unassigned-{dev_id or client_ip}"
+
+            now_ts = time.time()
+            now_str = now_iso()
+            persist_needed = False
+            with tv_screens_lock:
+                prev = tv_screens.get(screen_id) or {}
+                last_saved = float(prev.get("_saved_ts") or 0)
+                if not prev or prev.get("ip") != client_ip or prev.get("app_version") != app_version or (now_ts - last_saved) > 60:
+                    persist_needed = True
+                    last_saved = now_ts
+                rec = {
+                    "screen_id": screen_id,
+                    "room": room if mode == "room" else "",
+                    "mode": mode,
+                    "screen_state": screen_state,
+                    "app_version": app_version,
+                    "platform": platform,
+                    "ip": client_ip,
+                    "last_seen": now_str,
+                    "last_seen_ts": now_ts,
+                    "_saved_ts": last_saved,
+                }
+                tv_screens[screen_id] = rec
+                cmds = tv_commands.pop(screen_id, [])
+
+            if persist_needed:
+                with db_lock:
+                    data = load_db()
+                    reg = data.setdefault("screens_registry", {})
+                    reg[screen_id] = {k: v for k, v in rec.items() if not k.startswith("_")}
+                    save_db(data)
+
+            self.send_json(200, {"ok": True, "screen_id": screen_id, "commands": cmds})
+            return
+
+        if path == "/api/staff/channels/list":
+            pin = normalize_digits(body.get("pin"))
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                channels = list(data.get("iptv_channels") or [])
+            self.send_json(200, {"ok": True, "channels": channels})
+            return
+
+        if path == "/api/staff/channels/save":
+            pin = normalize_digits(body.get("pin"))
+            raw_list = body.get("channels")
+            if not isinstance(raw_list, list):
+                self.send_json(400, {"error": {"message": "قائمة القنوات غير صالحة"}})
+                return
+            cleaned = []
+            for idx, item in enumerate(raw_list[:200]):
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name") or "").strip()[:80]
+                url = str(item.get("url") or "").strip()[:500]
+                group = str(item.get("group") or "قنوات عربية").strip()[:40] or "قنوات عربية"
+                cid = re.sub(r"[^a-zA-Z0-9_-]", "", str(item.get("id") or ""))[:40] or f"ch_{uuid.uuid4().hex[:8]}"
+                enabled = bool(item.get("enabled", True))
+                if not name or not (url.startswith(("http://", "https://", "/"))):
+                    continue
+                cleaned.append({"id": cid, "name": name, "group": group, "url": url, "enabled": enabled})
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                data["iptv_channels"] = cleaned
+                save_db(data)
+            self.send_json(200, {"ok": True, "channels": cleaned})
+            return
+
+        if path == "/api/staff/channels/reset":
+            pin = normalize_digits(body.get("pin"))
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                fresh = copy_default_channels()
+                data["iptv_channels"] = fresh
+                save_db(data)
+            self.send_json(200, {"ok": True, "channels": fresh})
+            return
+
+        if path == "/api/staff/screens":
+            pin = normalize_digits(body.get("pin"))
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                guests_map = dict(data.get("guests") or {})
+
+            now_ts = time.time()
+            with tv_screens_lock:
+                snapshot = [dict(v) for v in tv_screens.values()]
+
+            out = []
+            online_cnt = 0
+            for item in snapshot:
+                last_ts = float(item.get("last_seen_ts") or 0)
+                age = max(0, int(now_ts - last_ts)) if last_ts > 0 else 999999
+                is_online = last_ts > 0 and age <= ONLINE_TTL_SEC
+                if is_online:
+                    online_cnt += 1
+                rm = str(item.get("room") or "")
+                g_row = guests_map.get(rm) or {}
+                out.append(
+                    {
+                        "screen_id": item.get("screen_id"),
+                        "room": rm,
+                        "mode": item.get("mode") or "room",
+                        "guest_name": str(g_row.get("full_name") or "").strip(),
+                        "screen_state": item.get("screen_state") or "portal",
+                        "app_version": item.get("app_version") or "—",
+                        "platform": item.get("platform") or "web",
+                        "ip": item.get("ip") or "—",
+                        "last_seen": item.get("last_seen"),
+                        "seconds_ago": age,
+                        "online": is_online,
+                    }
+                )
+
+            def sort_screen_key(s):
+                if s["mode"] == "lobby":
+                    return (1, 0, s["screen_id"])
+                r = s["room"]
+                return (0, int(r), "") if r.isdigit() else (2, 0, s["screen_id"])
+
+            out.sort(key=sort_screen_key)
+            self.send_json(200, {"ok": True, "screens": out, "online_count": online_cnt, "total_count": len(out)})
+            return
+
+        if path == "/api/staff/screens/command":
+            pin = normalize_digits(body.get("pin"))
+            target = str(body.get("target") or "").strip()
+            command = str(body.get("command") or "").strip().lower()
+            if command not in ALLOWED_TV_COMMANDS:
+                self.send_json(400, {"error": {"message": "أمر التحكم غير صالح"}})
+                return
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+
+            queued = 0
+            with tv_screens_lock:
+                if target == "all":
+                    targets = list(tv_screens.keys())
+                elif target in tv_screens:
+                    targets = [target]
+                else:
+                    clean_rm = normalize_digits(target)
+                    targets = [f"room-{clean_rm}"] if clean_rm else []
+
+                for sid in targets:
+                    q = tv_commands.setdefault(sid, [])
+                    if not any(c.get("command") == command for c in q):
+                        q.append({"id": uuid.uuid4().hex[:8], "command": command, "ts": now_iso()})
+                    if len(q) > 10:
+                        del q[:-10]
+                    queued += 1
+
+            self.send_json(200, {"ok": True, "queued": queued, "command": command})
+            return
+
+        if path == "/api/staff/screens/remove":
+            pin = normalize_digits(body.get("pin"))
+            sid = str(body.get("screen_id") or "").strip()
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+                reg = data.get("screens_registry") or {}
+                if sid in reg:
+                    reg.pop(sid, None)
+                    save_db(data)
+            with tv_screens_lock:
+                tv_screens.pop(sid, None)
+                tv_commands.pop(sid, None)
+            self.send_json(200, {"ok": True})
+            return
+
         if path == "/api/staff/change-pin":
             old_pin = normalize_digits(body.get("old_pin"))
             new_pin = normalize_digits(body.get("new_pin"))
@@ -1368,6 +1800,13 @@ def main():
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, shutdown_handler)
+    with db_lock:
+        boot_db = load_db()
+        saved_screens = dict(boot_db.get("screens_registry") or {})
+    with tv_screens_lock:
+        for sid, entry in saved_screens.items():
+            if isinstance(entry, dict):
+                tv_screens[sid] = dict(entry)
     start_cache_sync_worker()
     start_udp_discovery_responder(port)
     server = http.server.ThreadingHTTPServer((bind_host, port), HotelRequestHandler)

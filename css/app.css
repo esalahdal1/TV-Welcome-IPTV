@@ -2280,3 +2280,219 @@ body.is-mobile-mode {
     padding-top: 10px;
     border-top: 1px solid rgba(255,255,255,0.1);
 }
+
+.staff-count-badge.is-online {
+    background: #10b981;
+    color: #022c22;
+}
+
+.staff-tv-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.staff-tv-pill.is-online {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.staff-tv-pill.is-offline {
+    background: rgba(148, 163, 184, 0.14);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.staff-remote-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(2, 6, 23, 0.55);
+    border: 1px solid rgba(251, 191, 36, 0.24);
+}
+
+.staff-remote-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.staff-screens-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 14px;
+}
+
+.staff-screen-card {
+    background: rgba(2, 6, 23, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 16px;
+    display: grid;
+    gap: 10px;
+}
+
+.staff-screen-card.is-online {
+    border-color: rgba(52, 211, 153, 0.42);
+    box-shadow: 0 0 22px rgba(16, 185, 129, 0.08);
+}
+
+.staff-screen-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.staff-screen-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.staff-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.staff-dot.is-online {
+    background: #10b981;
+    box-shadow: 0 0 10px #10b981;
+}
+
+.staff-dot.is-offline {
+    background: #ef4444;
+}
+
+.staff-screen-meta {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.staff-screen-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.staff-screen-btns .admin-btn {
+    padding: 6px 11px;
+    font-size: 12.5px;
+    height: auto;
+}
+
+.staff-iptv-add-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.9fr 1.6fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+@media (max-width: 860px) {
+    .staff-iptv-add-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.staff-iptv-add-grid input,
+.staff-iptv-add-grid select {
+    height: 42px;
+    padding: 0 12px;
+    border-radius: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(2, 6, 23, 0.72);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+}
+
+.staff-iptv-list {
+    display: grid;
+    gap: 8px;
+    max-height: 440px;
+    overflow-y: auto;
+    padding-inline-end: 4px;
+}
+
+.staff-iptv-row {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.staff-iptv-row.is-disabled {
+    opacity: 0.5;
+}
+
+.staff-iptv-num {
+    font-weight: 900;
+    color: var(--gold);
+    font-size: 15px;
+    text-align: center;
+}
+
+.staff-iptv-info {
+    min-width: 0;
+}
+
+.staff-iptv-name {
+    font-weight: 800;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.staff-iptv-group {
+    font-size: 11.5px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--gold);
+}
+
+.staff-iptv-url {
+    font-size: 12px;
+    color: var(--muted);
+    direction: ltr;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 460px;
+}
+
+.staff-iptv-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.staff-iptv-actions .admin-btn {
+    padding: 5px 9px;
+    font-size: 12px;
+    height: auto;
+}

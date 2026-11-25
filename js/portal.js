@@ -1015,6 +1015,60 @@
         });
     }
 
+    function executeRemoteCommands(commands) {
+        if (!Array.isArray(commands)) return;
+        commands.forEach(function (item) {
+            var cmd = item && item.command ? String(item.command) : '';
+            if (cmd === 'reload') {
+                if (global.TVIP && typeof global.TVIP.reloadPortal === 'function') global.TVIP.reloadPortal();
+                else global.location.reload();
+            } else if (cmd === 'open_tv') {
+                if (global.TVIP && typeof global.TVIP.openLiveTv === 'function') global.TVIP.openLiveTv();
+            } else if (cmd === 'open_portal') {
+                if (state.webrtcStreaming) stopActiveCastFromTv();
+                closeAllOverlays();
+            } else if (cmd === 'stop_cast') {
+                if (state.webrtcStreaming) stopActiveCastFromTv();
+            } else if (cmd === 'update_apk') {
+                if (global.TVIP && typeof global.TVIP.installAppUpdate === 'function') global.TVIP.installAppUpdate();
+            }
+        });
+    }
+
+    async function sendWebScreenHeartbeat() {
+        if (cfg.IS_ADMIN || cfg.IS_RECEPTION || cfg.IS_GUEST_MOBILE || cfg.IS_LOBBY) return;
+        if (!db || !db.sendTvHeartbeat) return;
+        try {
+            if (global.TVIP && typeof global.TVIP.hasNativeMonitor === 'function' && global.TVIP.hasNativeMonitor()) {
+                return;
+            }
+        } catch (e) {}
+        var devId = '';
+        try {
+            devId = global.localStorage.getItem('TV_WEB_DEVICE_ID') || '';
+            if (!devId) {
+                devId = 'web-' + Math.random().toString(36).slice(2, 10);
+                global.localStorage.setItem('TV_WEB_DEVICE_ID', devId);
+            }
+        } catch (e2) { devId = 'web-tv'; }
+        var st = state.webrtcStreaming ? (state.castMode === 'media' ? 'cast_media' : 'cast_webrtc') : 'portal';
+        var appVer = 'web';
+        try {
+            if (global.TVIP && typeof global.TVIP.getAppVersion === 'function') appVer = global.TVIP.getAppVersion();
+        } catch (e3) {}
+        var res = await db.sendTvHeartbeat({
+            room: cfg.ROOM || '',
+            mode: 'room',
+            screen_state: st,
+            app_version: appVer,
+            platform: global.TVIP ? 'android_tv' : 'web',
+            device_id: devId
+        });
+        if (res && Array.isArray(res.commands) && res.commands.length > 0) {
+            executeRemoteCommands(res.commands);
+        }
+    }
+
     TVApp.portal = {
         init: function () {
             i18n.setLang(i18n.getLang());
@@ -1027,8 +1081,10 @@
             fetchHotelSettings();
             fetchGuest().finally(function () {
                 syncWebrtcReceiver();
+                sendWebScreenHeartbeat();
             });
             global.setInterval(fetchGuest, 10000);
+            global.setInterval(sendWebScreenHeartbeat, 14000);
             global.setInterval(fetchHotelSettings, 120000);
             global.setTimeout(pollNotificationsOnce, 3000);
             global.setInterval(pollNotificationsOnce, 20000);
@@ -1043,6 +1099,11 @@
                 return true;
             }
             return false;
+        },
+        stopActiveCast: stopActiveCastFromTv,
+        getScreenState: function () {
+            if (state.webrtcStreaming) return state.castMode === 'media' ? 'cast_media' : 'cast_webrtc';
+            return 'portal';
         },
         enqueueToast: enqueueToast
     };

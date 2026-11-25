@@ -51,11 +51,10 @@ class IptvRepository(
 
     private fun buildCategories(channels: List<Channel>): List<Category> {
         val groups = channels.groupBy { it.groupTitle?.trim().orEmpty().ifEmpty { "أخرى" } }
-        val titles = groups.keys.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
-        val categories = ArrayList<Category>(titles.size + 1)
+        val categories = ArrayList<Category>(groups.size + 1)
         categories.add(Category(title = "الكل", channels = channels))
-        for (title in titles) {
-            categories.add(Category(title = title, channels = groups[title].orEmpty()))
+        for ((title, items) in groups) {
+            categories.add(Category(title = title, channels = items))
         }
         return categories
     }

@@ -184,6 +184,42 @@ class MainActivity : AppCompatActivity() {
 
         webView.isFocusableInTouchMode = true
         webView.requestFocus()
+        handleRemoteActionIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleRemoteActionIntent(intent)
+    }
+
+    private fun handleRemoteActionIntent(incoming: Intent?) {
+        val action = incoming?.getStringExtra(EXTRA_REMOTE_ACTION)?.trim().orEmpty()
+        if (action.isEmpty()) return
+        incoming?.removeExtra(EXTRA_REMOTE_ACTION)
+        when (action) {
+            "reload" -> runRemoteReload()
+            "open_portal" -> runRemoteStopCast()
+            "update_apk" -> runRemoteApkUpdate()
+        }
+    }
+
+    fun runRemoteReload() {
+        if (!::webView.isInitialized) return
+        Toast.makeText(this, "جارٍ إعادة تحميل الشاشة عن بُعد...", Toast.LENGTH_SHORT).show()
+        reloadOnlinePortal(clearCacheFirst = true)
+    }
+
+    fun runRemoteStopCast() {
+        if (!::webView.isInitialized) return
+        webView.evaluateJavascript(
+            "if (window.TVApp && TVApp.portal && TVApp.portal.stopActiveCast) TVApp.portal.stopActiveCast();",
+            null
+        )
+    }
+
+    fun runRemoteApkUpdate() {
+        downloadAndInstallUpdate()
     }
 
     private fun handleWebNavigationUri(view: WebView, uri: Uri): Boolean {
@@ -209,6 +245,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         Notifications.bindForeground(window) { }
         Notifications.pollAsync(this)
+        TvMonitor.onActivityResumed(this, if (appMode == SetupActivity.MODE_LOBBY) "lobby" else "portal")
     }
 
     override fun onPause() {
@@ -458,6 +495,17 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun reloadPortal() {
             runOnUiThread { reloadOnlinePortal(clearCacheFirst = false) }
+        }
+
+        @JavascriptInterface
+        fun hasNativeMonitor(): Boolean = true
+
+        @JavascriptInterface
+        fun getAppVersion(): String = "3.4"
+
+        @JavascriptInterface
+        fun installAppUpdate() {
+            runOnUiThread { downloadAndInstallUpdate() }
         }
     }
 
@@ -778,6 +826,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val EXTRA_REMOTE_ACTION = "extra_remote_action"
         private const val DEFAULT_PORTAL_URL = SetupActivity.DEFAULT_PORTAL_URL
         private const val OFFLINE_ASSET_URL = "file:///android_asset/offline_welcome.html"
         private const val GITHUB_FALLBACK_APK_URL = "https://github.com/esalahdal1/TV-Welcome-IPTV/releases/latest/download/app-debug.apk"

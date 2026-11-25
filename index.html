@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مساكن النزهة - ترحيب النزلاء</title>
     <link rel="icon" href="3%20small.png">
-    <script src="vendor/qrcode/qrcode.min.js?v=37"></script>
-    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=37">
-    <link rel="stylesheet" href="css/app.css?v=37">
+    <script src="vendor/qrcode/qrcode.min.js?v=38"></script>
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=38">
+    <link rel="stylesheet" href="css/app.css?v=38">
 </head>
 <body>
     <div class="animated-bg"></div>
@@ -323,13 +323,31 @@
             <div id="staffDashboard" class="staff-dashboard" style="display:none">
                 <div class="staff-nav-tabs">
                     <button type="button" class="tab-btn active" data-staff-tab="rooms">الغرف والتسكين</button>
+                    <button type="button" class="tab-btn" data-staff-tab="screens">
+                        مراقبة الشاشات عن بُعد
+                        <span id="staffOnlineScreensBadge" class="staff-count-badge is-online" style="display:none">0</span>
+                    </button>
                     <button type="button" class="tab-btn" data-staff-tab="requests">
                         طلبات النزلاء
                         <span id="staffPendingBadge" class="staff-count-badge" style="display:none">0</span>
                     </button>
                     <button type="button" class="tab-btn" data-staff-tab="notifications">الإشعارات</button>
-                    <button type="button" class="tab-btn" data-staff-tab="channel1">قناة الفندق #1</button>
+                    <button type="button" class="tab-btn" data-staff-tab="channel1">القنوات التلفزيونية</button>
                     <button type="button" class="tab-btn" data-staff-tab="settings">إعدادات الفندق والأمان</button>
+                </div>
+
+                <!-- Pane 0: Live Remote Screen Monitor & Control -->
+                <div class="staff-pane" data-staff-pane="screens" style="display:none">
+                    <div class="staff-remote-bar">
+                        <div id="staffScreensStats" class="staff-section-note">جارٍ فحص الشاشات المتصلة...</div>
+                        <div class="staff-remote-actions">
+                            <button type="button" class="admin-btn" data-remote-all="reload"><i class="fas fa-sync-alt"></i> إعادة تحميل الكل</button>
+                            <button type="button" class="admin-btn secondary" data-remote-all="open_tv"><i class="fas fa-tv"></i> تشغيل القنوات للكل</button>
+                            <button type="button" class="admin-btn secondary" data-remote-all="open_portal"><i class="fas fa-home"></i> واجهة الترحيب للكل</button>
+                            <button type="button" class="admin-btn secondary" data-remote-all="update_apk"><i class="fas fa-download"></i> تحديث APK للكل</button>
+                        </div>
+                    </div>
+                    <div id="staffScreensList" class="staff-screens-grid"></div>
                 </div>
 
                 <!-- Pane 1: Rooms & Check-in/Check-out -->
@@ -396,6 +414,31 @@
                                 <button id="ch1DeleteBtn" type="button" class="admin-btn danger">حذف الفيديو</button>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="staff-subcard" style="margin-top:16px">
+                        <div class="staff-screen-head">
+                            <div>
+                                <div class="admin-modal-title">إدارة وترتيب القنوات السعودية والعربية (القنوات من #2 فما فوق)</div>
+                                <p id="iptvCountSummary" class="staff-section-note">قنوات مختارة ومرتبة للفندق تعمل مباشرة بعد قناة الفندق #1.</p>
+                            </div>
+                            <button id="iptvResetDefaultBtn" type="button" class="admin-btn secondary">استعادة القائمة الافتراضية</button>
+                        </div>
+                        <div class="staff-iptv-add-grid">
+                            <input id="iptvAddName" type="text" placeholder="اسم القناة (مثال: الرياضية السعودية)">
+                            <select id="iptvAddGroup">
+                                <option value="القنوات الدينية">القنوات الدينية</option>
+                                <option value="القنوات السعودية" selected>القنوات السعودية</option>
+                                <option value="الأخبار">الأخبار</option>
+                                <option value="ترفيه وعائلة">ترفيه وعائلة</option>
+                                <option value="رياضية">رياضية</option>
+                                <option value="أطفال">أطفال</option>
+                                <option value="وثائقية">وثائقية</option>
+                            </select>
+                            <input id="iptvAddUrl" type="url" dir="ltr" placeholder="https://example.com/live/playlist.m3u8">
+                            <button id="iptvAddBtn" type="button" class="admin-btn">+ إضافة قناة</button>
+                        </div>
+                        <div id="iptvChannelsList" class="staff-iptv-list"></div>
                     </div>
                 </div>
 
@@ -489,15 +532,15 @@
         </div>
     </div>
 
-    <script defer src="js/config.js?v=37"></script>
-    <script defer src="js/i18n.js?v=37"></script>
-    <script defer src="js/supabase-client.js?v=37"></script>
-    <script defer src="js/webrtc-cast.js?v=37"></script>
-    <script defer src="js/widgets.js?v=37"></script>
-    <script defer src="js/portal.js?v=37"></script>
-    <script defer src="js/mobile-portal.js?v=37"></script>
-    <script defer src="js/lobby.js?v=37"></script>
-    <script defer src="js/staff.js?v=37"></script>
-    <script defer src="js/main.js?v=37"></script>
+    <script defer src="js/config.js?v=38"></script>
+    <script defer src="js/i18n.js?v=38"></script>
+    <script defer src="js/supabase-client.js?v=38"></script>
+    <script defer src="js/webrtc-cast.js?v=38"></script>
+    <script defer src="js/widgets.js?v=38"></script>
+    <script defer src="js/portal.js?v=38"></script>
+    <script defer src="js/mobile-portal.js?v=38"></script>
+    <script defer src="js/lobby.js?v=38"></script>
+    <script defer src="js/staff.js?v=38"></script>
+    <script defer src="js/main.js?v=38"></script>
 </body>
 </html>
