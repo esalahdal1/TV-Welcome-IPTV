@@ -355,9 +355,10 @@
         99: { ar: 'عاصفة رعدية شديدة', en: 'Severe Thunderstorm' }
     };
 
+    var langKey = 'TV_LANG_' + ((TVApp.config && TVApp.config.ROOM) || (TVApp.config && TVApp.config.IS_LOBBY ? 'LOBBY' : 'GLOBAL'));
     var currentLang = 'ar';
     try {
-        var saved = global.localStorage.getItem('TV_LANG');
+        var saved = global.localStorage.getItem(langKey) || global.localStorage.getItem('TV_LANG');
         if (saved === 'en' || saved === 'ar') currentLang = saved;
     } catch (e) {}
 
@@ -365,7 +366,7 @@
         getLang: function () { return currentLang; },
         setLang: function (lang) {
             currentLang = lang === 'en' ? 'en' : 'ar';
-            try { global.localStorage.setItem('TV_LANG', currentLang); } catch (e) {}
+            try { global.localStorage.setItem(langKey, currentLang); } catch (e) {}
             global.document.documentElement.lang = currentLang;
             global.document.documentElement.dir = currentLang === 'en' ? 'ltr' : 'rtl';
             global.document.title = this.dict().pageTitle;

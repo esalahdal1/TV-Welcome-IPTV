@@ -339,13 +339,67 @@
         if (stage) stage.style.display = 'block';
     }
 
+    async function openWebLiveTv() {
+        var url = '/api/channel1/video';
+        var title = 'مساكن النزهة — القناة الترحيبية #1';
+        if (db && db.getHotelChannel1Info) {
+            var info = await db.getHotelChannel1Info();
+            if (info && info.active && info.channel && info.channel.url) {
+                url = info.channel.url;
+                title = info.channel.title || title;
+            }
+        }
+        var stage = $('webrtcCastStage');
+        var img = $('tvCastImage');
+        var video = $('tvCastVideo');
+        var label = $('webrtcCastBannerText');
+        var stopBtn = $('webrtcStopTvBtn');
+        if (label) label.innerText = '📺 ' + title;
+        if (stopBtn) stopBtn.innerText = i18n.dict().castWebrtcStopBtn;
+        closeAllOverlays();
+        state.webrtcStreaming = true;
+        state.castMode = 'live_tv';
+        state.activeMedia = null;
+        setDpadDownBlocked(true);
+        if (img) {
+            img.style.display = 'none';
+            img.removeAttribute('src');
+        }
+        if (video) {
+            video.srcObject = null;
+            video.style.display = 'block';
+            video.loop = true;
+            video.playsInline = true;
+            var inFrame = false;
+            try { inFrame = global.self !== global.top; } catch (e) { inFrame = true; }
+            video.muted = inFrame;
+            video.src = url;
+            video.load();
+            var p = video.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(function () {
+                    video.muted = true;
+                    video.play().catch(function () {});
+                });
+            }
+        }
+        if (stage) stage.style.display = 'block';
+        sendWebScreenHeartbeat();
+    }
+
     function stopActiveCastFromTv() {
         var roomTag = cfg.ROOM || '101';
+        if (state.castMode === 'live_tv') {
+            clearCastStage();
+            sendWebScreenHeartbeat();
+            return;
+        }
         if (state.castMode === 'media') {
             clearCastStage();
             if (db && db.controlRoomMedia) {
                 db.controlRoomMedia(roomTag, state.roomPin, 'stop').catch(function () {});
             }
+            sendWebScreenHeartbeat();
             return;
         }
         if (TVApp.webrtcCast) {
@@ -353,6 +407,7 @@
         } else {
             clearCastStage();
         }
+        sendWebScreenHeartbeat();
     }
 
     function syncWebrtcReceiver() {
@@ -832,7 +887,7 @@
             } else if (global.TVIP) {
                 global.location.href = 'tvip://tv';
             } else {
-                enqueueToast(i18n.dict().tvIptvPreviewToast);
+                openWebLiveTv();
             }
             return;
         }
@@ -1003,7 +1058,7 @@
             if (isDownKey(e)) {
                 if (!global.TVIP) {
                     e.preventDefault();
-                    enqueueToast(i18n.dict().tvIptvPreviewToast);
+                    openWebLiveTv();
                 }
                 return;
             }
@@ -1024,6 +1079,7 @@
                 else global.location.reload();
             } else if (cmd === 'open_tv') {
                 if (global.TVIP && typeof global.TVIP.openLiveTv === 'function') global.TVIP.openLiveTv();
+                else openWebLiveTv();
             } else if (cmd === 'open_portal') {
                 if (state.webrtcStreaming) stopActiveCastFromTv();
                 closeAllOverlays();
@@ -1051,7 +1107,12 @@
                 global.localStorage.setItem('TV_WEB_DEVICE_ID', devId);
             }
         } catch (e2) { devId = 'web-tv'; }
-        var st = state.webrtcStreaming ? (state.castMode === 'media' ? 'cast_media' : 'cast_webrtc') : 'portal';
+        var st = 'portal';
+        if (state.webrtcStreaming) {
+            if (state.castMode === 'live_tv') st = 'live_tv';
+            else if (state.castMode === 'media') st = 'cast_media';
+            else st = 'cast_webrtc';
+        }
         var appVer = 'web';
         try {
             if (global.TVIP && typeof global.TVIP.getAppVersion === 'function') appVer = global.TVIP.getAppVersion();
@@ -1077,6 +1138,18 @@
             applyLanguageToDom();
             setDpadDownBlocked(false);
             bindEvents();
+            global.addEventListener('message', function (ev) {
+                var d = ev && ev.data;
+                if (!d || d.type !== 'tvip-sim-key') return;
+                var evObj = new global.KeyboardEvent('keydown', {
+                    key: d.key || '',
+                    keyCode: d.keyCode || 0,
+                    which: d.keyCode || 0,
+                    bubbles: true,
+                    cancelable: true
+                });
+                global.document.dispatchEvent(evObj);
+            });
 
             fetchHotelSettings();
             fetchGuest().finally(function () {

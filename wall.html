@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدار محاكاة 10 شاشات فندقية — مساكن النزهة</title>
+    <link rel="icon" href="3%20small.png">
+    <link rel="stylesheet" href="vendor/fonts/cairo.css?v=36">
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=38">
+    <style>
+        :root {
+            --bg: #050814;
+            --card: #0c1428;
+            --border: rgba(255, 255, 255, 0.13);
+            --gold: #fbbf24;
+            --emerald: #10b981;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        .wall-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(8, 15, 32, 0.95);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+            padding: 10px 18px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .wall-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .wall-brand img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+        }
+        .wall-brand h1 {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+        .wall-brand span {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .wall-controls, .remote-pad {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+        .remote-pad {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            padding: 5px 10px;
+            border-radius: 12px;
+        }
+        .remote-label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--gold);
+            margin-inline-end: 4px;
+        }
+        .w-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 6px 12px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.16s ease;
+            text-decoration: none;
+        }
+        .w-btn:hover {
+            background: rgba(251, 191, 36, 0.18);
+            border-color: var(--gold);
+        }
+        .w-btn.is-gold {
+            background: linear-gradient(135deg, #fbbf24, #d97706);
+            color: #090d16;
+            border-color: transparent;
+        }
+        .w-btn.is-active {
+            border-color: var(--emerald);
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+        .wall-workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+            min-height: calc(100vh - 64px);
+        }
+        .wall-workspace.with-admin {
+            grid-template-columns: 450px 1fr;
+        }
+        @media (max-width: 1180px) {
+            .wall-workspace.with-admin {
+                grid-template-columns: 1fr;
+            }
+        }
+        .admin-dock {
+            display: none;
+            border-inline-end: 1px solid rgba(251, 191, 36, 0.28);
+            background: #070d1c;
+            height: calc(100vh - 64px);
+            position: sticky;
+            top: 64px;
+        }
+        .wall-workspace.with-admin .admin-dock {
+            display: block;
+        }
+        .admin-dock iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        .screens-grid {
+            padding: 14px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 12px;
+            align-content: start;
+        }
+        .screens-grid.cols-5 {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+        @media (max-width: 1440px) {
+            .screens-grid.cols-5 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 900px) {
+            .screens-grid.cols-5 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        .tv-unit {
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .tv-unit.is-selected {
+            border-color: var(--gold);
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.22);
+        }
+        .tv-unit.is-zoomed {
+            position: fixed;
+            inset: 72px 18px 18px 18px;
+            z-index: 80;
+            border-color: var(--gold);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.9);
+        }
+        .tv-bezel-top {
+            padding: 6px 10px;
+            background: rgba(2, 6, 23, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .tv-bezel-title {
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tv-led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--emerald);
+            box-shadow: 0 0 8px var(--emerald);
+        }
+        .tv-bezel-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .tv-mini-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            border: 0;
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .tv-mini-btn:hover {
+            color: var(--text);
+            background: rgba(251, 191, 36, 0.25);
+        }
+        .tv-screen-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+        }
+        .tv-unit.is-zoomed .tv-screen-wrap {
+            flex: 1;
+            aspect-ratio: auto;
+        }
+        .tv-screen-wrap iframe {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+    <header class="wall-header">
+        <div class="wall-brand">
+            <img src="3%20small.png" alt="Logo">
+            <div>
+                <h1>جدار محاكاة 10 شاشات حية — مساكن النزهة</h1>
+                <span>اختبر التسكين، الإشعارات، البث من الجوال، والقنوات على 10 شاشات حقيقية في آنٍ واحد</span>
+            </div>
+        </div>
+
+        <div class="remote-pad">
+            <span id="selectedScreenLabel" class="remote-label">ريموت: غرفة 101</span>
+            <button type="button" class="w-btn" data-key="ArrowRight" data-kc="39" title="يمين">►</button>
+            <button type="button" class="w-btn" data-key="ArrowUp" data-kc="38" title="أعلى">▲</button>
+            <button type="button" class="w-btn is-gold" data-key="Enter" data-kc="13" title="موافق">OK</button>
+            <button type="button" class="w-btn" data-key="ArrowDown" data-kc="40" title="أسفل / القنوات">▼</button>
+            <button type="button" class="w-btn" data-key="ArrowLeft" data-kc="37" title="يسار">◄</button>
+            <button type="button" class="w-btn" data-key="Escape" data-kc="27" title="رجوع">رجوع</button>
+        </div>
+
+        <div class="wall-controls">
+            <button id="toggleAdminSplitBtn" type="button" class="w-btn is-active">
+                <i class="fas fa-columns"></i>
+                <span>لوحة الإدارة الجانبية</span>
+            </button>
+            <button id="presetRoomsBtn" type="button" class="w-btn">9 غرف + شاشة الصالة</button>
+            <button id="toggleColsBtn" type="button" class="w-btn">حجم أكبر (3 أعمدة)</button>
+            <button id="reloadAllFramesBtn" type="button" class="w-btn"><i class="fas fa-sync-alt"></i> تحديث الكل</button>
+            <a href="/?admin=1" target="_blank" class="w-btn"><i class="fas fa-external-link-alt"></i> الإدارة بنافذة مستقلة</a>
+        </div>
+    </header>
+
+    <div id="wallWorkspace" class="wall-workspace with-admin">
+        <aside class="admin-dock">
+            <iframe id="adminFrame" src="/?admin=1" title="لوحة الإدارة"></iframe>
+        </aside>
+        <main id="screensGrid" class="screens-grid cols-5"></main>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var includeLobby = false;
+            var selectedIdx = 0;
+            var zoomedIdx = -1;
+            var fiveCols = true;
+
+            var grid = document.getElementById('screensGrid');
+            var workspace = document.getElementById('wallWorkspace');
+            var selectedLabel = document.getElementById('selectedScreenLabel');
+            var splitBtn = document.getElementById('toggleAdminSplitBtn');
+            var presetBtn = document.getElementById('presetRoomsBtn');
+            var colsBtn = document.getElementById('toggleColsBtn');
+            var reloadBtn = document.getElementById('reloadAllFramesBtn');
+
+            function buildTargets() {
+                var list = [];
+                var maxRoom = includeLobby ? 109 : 110;
+                for (var r = 101; r <= maxRoom; r++) {
+                    list.push({ title: 'شاشة غرفة ' + r, short: 'غرفة ' + r, url: '/?room=' + r });
+                }
+                if (includeLobby) {
+                    list.push({ title: 'شاشة الصالة الرئيسية', short: 'الصالة', url: '/?mode=lobby' });
+                }
+                return list;
+            }
+
+            var targets = buildTargets();
+
+            function selectScreen(idx) {
+                selectedIdx = idx;
+                if (targets[idx] && selectedLabel) {
+                    selectedLabel.innerText = 'ريموت: ' + targets[idx].short;
+                }
+                var cards = grid.querySelectorAll('.tv-unit');
+                for (var i = 0; i < cards.length; i++) {
+                    cards[i].classList.toggle('is-selected', i === idx);
+                }
+            }
+
+            function toggleZoom(idx) {
+                zoomedIdx = (zoomedIdx === idx) ? -1 : idx;
+                var cards = grid.querySelectorAll('.tv-unit');
+                for (var i = 0; i < cards.length; i++) {
+                    cards[i].classList.toggle('is-zoomed', i === zoomedIdx);
+                }
+            }
+
+            function renderWall() {
+                targets = buildTargets();
+                grid.innerHTML = '';
+                targets.forEach(function (t, idx) {
+                    var unit = document.createElement('div');
+                    unit.className = 'tv-unit' + (idx === selectedIdx ? ' is-selected' : '');
+
+                    var top = document.createElement('div');
+                    top.className = 'tv-bezel-top';
+                    top.innerHTML =
+                        '<div class="tv-bezel-title"><span class="tv-led"></span><span>#' + (idx + 1) + ' • ' + t.title + '</span></div>' +
+                        '<div class="tv-bezel-actions">' +
+                        '<button type="button" class="tv-mini-btn" data-act="tv" title="تشغيل القنوات">📺</button>' +
+                        '<button type="button" class="tv-mini-btn" data-act="zoom" title="تكبير / تصغير">⛶</button>' +
+                        '<a class="tv-mini-btn" href="' + t.url + '" target="_blank" title="فتح بتبويب مستقل">↗</a>' +
+                        '</div>';
+
+                    top.addEventListener('click', function (e) {
+                        var btn = e.target.closest('[data-act]');
+                        selectScreen(idx);
+                        if (!btn) return;
+                        var act = btn.getAttribute('data-act');
+                        if (act === 'zoom') toggleZoom(idx);
+                        if (act === 'tv') sendKeyToFrame(idx, 'ArrowDown', 40);
+                    });
+
+                    var wrap = document.createElement('div');
+                    wrap.className = 'tv-screen-wrap';
+                    var iframe = document.createElement('iframe');
+                    iframe.src = t.url;
+                    iframe.allow = 'autoplay; fullscreen';
+                    iframe.addEventListener('load', function () {
+                        try {
+                            iframe.contentWindow.addEventListener('pointerdown', function () {
+                                selectScreen(idx);
+                            });
+                        } catch (e) {}
+                    });
+                    wrap.appendChild(iframe);
+
+                    unit.appendChild(top);
+                    unit.appendChild(wrap);
+                    grid.appendChild(unit);
+                });
+                selectScreen(Math.min(selectedIdx, targets.length - 1));
+            }
+
+            function sendKeyToFrame(idx, key, keyCode) {
+                var frames = grid.querySelectorAll('.tv-screen-wrap iframe');
+                var f = frames[idx];
+                if (!f || !f.contentWindow) return;
+                f.contentWindow.postMessage({ type: 'tvip-sim-key', key: key, keyCode: Number(keyCode) || 0 }, '*');
+            }
+
+            document.querySelectorAll('[data-key]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    sendKeyToFrame(selectedIdx, btn.getAttribute('data-key'), btn.getAttribute('data-kc'));
+                });
+            });
+
+            splitBtn.addEventListener('click', function () {
+                var active = workspace.classList.toggle('with-admin');
+                splitBtn.classList.toggle('is-active', active);
+            });
+
+            presetBtn.addEventListener('click', function () {
+                includeLobby = !includeLobby;
+                presetBtn.innerText = includeLobby ? '10 غرف (101 – 110)' : '9 غرف + شاشة الصالة';
+                zoomedIdx = -1;
+                renderWall();
+            });
+
+            colsBtn.addEventListener('click', function () {
+                fiveCols = !fiveCols;
+                grid.classList.toggle('cols-5', fiveCols);
+                colsBtn.innerText = fiveCols ? 'حجم أكبر (3 أعمدة)' : 'شبكة شاملة (5 أعمدة)';
+            });
+
+            reloadBtn.addEventListener('click', function () {
+                grid.querySelectorAll('.tv-screen-wrap iframe').forEach(function (f) {
+                    try { f.contentWindow.location.reload(); } catch (e) {}
+                });
+            });
+
+            renderWall();
+        })();
+    </script>
+</body>
+</html>
