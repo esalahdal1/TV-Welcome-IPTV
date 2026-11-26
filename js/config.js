@@ -44,6 +44,8 @@
     var lobbyFlag = normalizeDigits((params.get('lobby') || '').trim()).toLowerCase();
     var roomParam = normalizeDigits((params.get('room') || '').trim());
     var pinParam = normalizeDigits((params.get('pin') || '').trim());
+    var simFlag = normalizeDigits((params.get('sim') || '').trim()).toLowerCase();
+    var tvFlag = normalizeDigits((params.get('tv') || '').trim()).toLowerCase();
 
     TVApp.config = {
         SUPABASE_URL: SUPABASE_URL,
@@ -52,6 +54,8 @@
         IS_RECEPTION: receptionFlag === '1' || receptionFlag === 'true',
         IS_GUEST_MOBILE: guestFlag === '1' || guestFlag === 'true',
         IS_LOBBY: modeParam === 'lobby' || lobbyFlag === '1' || lobbyFlag === 'true',
+        IS_SIMULATOR: simFlag === '1' || simFlag === 'true',
+        IS_WEB_TV: tvFlag === '1' || tvFlag === 'true',
         ROOM: roomParam || null,
         PIN_PARAM: pinParam || null,
         PUBLIC_URL: (params.get('publicUrl') || '').replace(/\/+$/, '') || null,

@@ -1093,6 +1093,7 @@
 
     async function sendWebScreenHeartbeat() {
         if (cfg.IS_ADMIN || cfg.IS_RECEPTION || cfg.IS_GUEST_MOBILE || cfg.IS_LOBBY) return;
+        if (!cfg.IS_SIMULATOR && !cfg.IS_WEB_TV) return;
         if (!db || !db.sendTvHeartbeat) return;
         try {
             if (global.TVIP && typeof global.TVIP.hasNativeMonitor === 'function' && global.TVIP.hasNativeMonitor()) {
@@ -1113,16 +1114,13 @@
             else if (state.castMode === 'media') st = 'cast_media';
             else st = 'cast_webrtc';
         }
-        var appVer = 'web';
-        try {
-            if (global.TVIP && typeof global.TVIP.getAppVersion === 'function') appVer = global.TVIP.getAppVersion();
-        } catch (e3) {}
+        var platformTag = cfg.IS_SIMULATOR ? 'simulator' : (global.TVIP ? 'android_tv' : 'web_tv');
         var res = await db.sendTvHeartbeat({
             room: cfg.ROOM || '',
             mode: 'room',
             screen_state: st,
-            app_version: appVer,
-            platform: global.TVIP ? 'android_tv' : 'web',
+            app_version: cfg.IS_SIMULATOR ? 'sim' : 'web',
+            platform: platformTag,
             device_id: devId
         });
         if (res && Array.isArray(res.commands) && res.commands.length > 0) {

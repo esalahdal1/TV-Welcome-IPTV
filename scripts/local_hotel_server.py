@@ -1576,7 +1576,9 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             fwd_ip = (self.headers.get("X-Real-IP") or self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
             client_ip = reported_ip or (fwd_ip if fwd_ip and fwd_ip != "127.0.0.1" else self.client_address[0])
 
-            if mode == "lobby":
+            if platform == "simulator":
+                screen_id = "sim-lobby" if mode == "lobby" else f"sim-{room or dev_id}"
+            elif mode == "lobby":
                 screen_id = f"lobby-{dev_id or client_ip}"
             elif room:
                 screen_id = f"room-{room}"
@@ -1588,8 +1590,12 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
             persist_needed = False
             with tv_screens_lock:
                 prev = tv_screens.get(screen_id) or {}
+                # Never allow a non-Android web preview to overwrite a registered physical Android TV
+                if prev.get("platform") == "android_tv" and platform != "android_tv":
+                    self.send_json(200, {"ok": True, "screen_id": screen_id, "commands": []})
+                    return
                 last_saved = float(prev.get("_saved_ts") or 0)
-                if not prev or prev.get("ip") != client_ip or prev.get("app_version") != app_version or (now_ts - last_saved) > 60:
+                if platform != "simulator" and (not prev or prev.get("ip") != client_ip or prev.get("app_version") != app_version or (now_ts - last_saved) > 60):
                     persist_needed = True
                     last_saved = now_ts
                 rec = {
@@ -1768,6 +1774,23 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
                 tv_screens.pop(sid, None)
                 tv_commands.pop(sid, None)
             self.send_json(200, {"ok": True})
+            return
+
+        if path == "/api/staff/screens/clear-sim":
+            pin = normalize_digits(body.get("pin"))
+            with db_lock:
+                data = load_db()
+                if not self.verify_staff(data, pin):
+                    self.send_json(401, {"error": {"message": "رمز الموظف غير صحيح"}})
+                    return
+            removed = 0
+            with tv_screens_lock:
+                sim_keys = [k for k, v in tv_screens.items() if k.startswith("sim-") or v.get("platform") == "simulator"]
+                for k in sim_keys:
+                    tv_screens.pop(k, None)
+                    tv_commands.pop(k, None)
+                    removed += 1
+            self.send_json(200, {"ok": True, "removed": removed})
             return
 
         if path == "/api/staff/change-pin":

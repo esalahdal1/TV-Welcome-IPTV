@@ -247,6 +247,7 @@
     }
 
     async function sendLobbyWebHeartbeat() {
+        if (!cfg.IS_SIMULATOR && !cfg.IS_WEB_TV) return;
         if (!db || !db.sendTvHeartbeat) return;
         try {
             if (global.TVIP && typeof global.TVIP.hasNativeMonitor === 'function' && global.TVIP.hasNativeMonitor()) {
@@ -265,8 +266,8 @@
             room: '',
             mode: 'lobby',
             screen_state: 'lobby',
-            app_version: 'web',
-            platform: global.TVIP ? 'android_tv' : 'web',
+            app_version: cfg.IS_SIMULATOR ? 'sim' : 'web',
+            platform: cfg.IS_SIMULATOR ? 'simulator' : 'web_tv',
             device_id: devId
         });
         if (res && Array.isArray(res.commands)) {

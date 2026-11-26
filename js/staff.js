@@ -161,16 +161,20 @@
         }
         box.innerHTML = rows.map(function (s) {
             var sid = String(s.screen_id || '');
+            var isSim = s.platform === 'simulator' || sid.indexOf('sim-') === 0;
             var isLobby = s.mode === 'lobby';
             var title = isLobby ? 'شاشة صالة / استقبال' : ('غرفة ' + (s.room || 'غير معيّنة'));
+            if (isSim) title += ' (محاكاة)';
             var guestTxt = isLobby ? 'وضع الصالات العام' : (s.guest_name ? ('النزيل: ' + s.guest_name) : 'غرفة شاغرة');
             var actLabel = describeScreenActivity(s.screen_state);
             var statusPill = s.online
                 ? '<span class="staff-tv-pill is-online">متصل • ' + escapeHtml(actLabel) + '</span>'
-                : '<span class="staff-tv-pill is-offline">غير متصل</span>';
+                : '<span class="staff-tv-pill is-offline">غير متصل (مغلقة)</span>';
             var dotCls = s.online ? 'staff-dot is-online' : 'staff-dot is-offline';
             var cardCls = s.online ? 'staff-screen-card is-online' : 'staff-screen-card';
-            var ver = s.app_version && s.app_version !== 'web' ? ('v' + s.app_version.replace(/^v/i, '')) : 'متصفح ويب';
+            var ver = isSim
+                ? 'شاشة افتراضية للتجربة'
+                : (s.platform === 'android_tv' ? ('جهاز تلفزيون v' + String(s.app_version || '').replace(/^v/i, '')) : 'متصفح شاشة ذكية');
 
             return '<div class="' + cardCls + '">' +
                 '<div class="staff-screen-head">' +
@@ -272,12 +276,14 @@
             var badge = isOccupied
                 ? '<span class="staff-badge is-occupied">مشغولة</span>'
                 : '<span class="staff-badge is-vacant">شاغرة</span>';
-            var scr = state.screens.find(function (s) { return s.mode === 'room' && String(s.room) === room; });
+            var scr = state.screens.find(function (s) { return s.mode === 'room' && String(s.room) === room && s.platform === 'android_tv'; })
+                || state.screens.find(function (s) { return s.mode === 'room' && String(s.room) === room; });
             var tvBadge = '';
             if (scr) {
+                var simNote = scr.platform === 'simulator' ? ' — محاكاة' : '';
                 tvBadge = scr.online
-                    ? ' <span class="staff-tv-pill is-online"><span class="staff-dot is-online"></span>الشاشة متصلة (' + escapeHtml(describeScreenActivity(scr.screen_state)) + ')</span>'
-                    : ' <span class="staff-tv-pill is-offline">الشاشة غير متصلة</span>';
+                    ? ' <span class="staff-tv-pill is-online"><span class="staff-dot is-online"></span>الشاشة متصلة (' + escapeHtml(describeScreenActivity(scr.screen_state)) + simNote + ')</span>'
+                    : ' <span class="staff-tv-pill is-offline">الشاشة مغلقة / غير متصلة</span>';
             }
 
             return '<div class="staff-room-row">' +

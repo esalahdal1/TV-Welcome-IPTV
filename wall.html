@@ -251,7 +251,7 @@
         </div>
 
         <div class="remote-pad">
-            <span id="selectedScreenLabel" class="remote-label">ريموت: غرفة 101</span>
+            <span id="selectedScreenLabel" class="remote-label">ريموت: غرفة 201</span>
             <button type="button" class="w-btn" data-key="ArrowRight" data-kc="39" title="يمين">►</button>
             <button type="button" class="w-btn" data-key="ArrowUp" data-kc="38" title="أعلى">▲</button>
             <button type="button" class="w-btn is-gold" data-key="Enter" data-kc="13" title="موافق">OK</button>
@@ -298,12 +298,12 @@
 
             function buildTargets() {
                 var list = [];
-                var maxRoom = includeLobby ? 109 : 110;
-                for (var r = 101; r <= maxRoom; r++) {
-                    list.push({ title: 'شاشة غرفة ' + r, short: 'غرفة ' + r, url: '/?room=' + r });
+                var maxRoom = includeLobby ? 209 : 210;
+                for (var r = 201; r <= maxRoom; r++) {
+                    list.push({ title: 'محاكاة غرفة ' + r, short: 'غرفة ' + r, url: '/?room=' + r + '&sim=1' });
                 }
                 if (includeLobby) {
-                    list.push({ title: 'شاشة الصالة الرئيسية', short: 'الصالة', url: '/?mode=lobby' });
+                    list.push({ title: 'محاكاة الصالة الرئيسية', short: 'الصالة', url: '/?mode=lobby&sim=1' });
                 }
                 return list;
             }
@@ -396,7 +396,7 @@
 
             presetBtn.addEventListener('click', function () {
                 includeLobby = !includeLobby;
-                presetBtn.innerText = includeLobby ? '10 غرف (101 – 110)' : '9 غرف + شاشة الصالة';
+                presetBtn.innerText = includeLobby ? '10 غرف (201 – 210)' : '9 غرف + شاشة الصالة';
                 zoomedIdx = -1;
                 renderWall();
             });

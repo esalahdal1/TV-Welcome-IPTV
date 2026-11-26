@@ -460,6 +460,14 @@
             return (res.ok && res.data) ? res.data : { ok: false };
         },
 
+        staffClearSimScreens: async function (pin) {
+            if (!(await detectLocalBackend())) return { ok: false };
+            var res = await postApi('/api/staff/screens/clear-sim', {
+                pin: utils.normalizeDigits(pin || '')
+            }, 3500);
+            return (res.ok && res.data) ? res.data : { ok: false };
+        },
+
         getCurrentRoomMedia: async function (room, pin) {
             if (!(await detectLocalBackend())) return { active: false, media: null };
             var q = new URLSearchParams({
