@@ -342,10 +342,18 @@ def compute_jeddah_prayers(y: int, m: int, d: int, lat: float = 21.5433, lon: fl
     }
 
 
+_widgets_mem_cache = None
+_widgets_mem_mtime = 0.0
+
+
 def load_widgets_cache() -> dict:
+    global _widgets_mem_cache, _widgets_mem_mtime
     if not os.path.exists(WIDGETS_CACHE_PATH):
         return {"prayers_by_date": {}, "weather": None, "m3u_synced_at": 0}
     try:
+        mt = os.path.getmtime(WIDGETS_CACHE_PATH)
+        if _widgets_mem_cache is not None and mt == _widgets_mem_mtime:
+            return _widgets_mem_cache
         with open(WIDGETS_CACHE_PATH, "r", encoding="utf-8") as f:
             raw = json.load(f)
         if not isinstance(raw, dict):
@@ -353,16 +361,24 @@ def load_widgets_cache() -> dict:
         raw.setdefault("prayers_by_date", {})
         raw.setdefault("weather", None)
         raw.setdefault("m3u_synced_at", 0)
+        _widgets_mem_cache = raw
+        _widgets_mem_mtime = mt
         return raw
     except Exception:
         return {"prayers_by_date": {}, "weather": None, "m3u_synced_at": 0}
 
 
 def save_widgets_cache(cache: dict) -> None:
+    global _widgets_mem_cache, _widgets_mem_mtime
     tmp = WIDGETS_CACHE_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
     os.replace(tmp, WIDGETS_CACHE_PATH)
+    _widgets_mem_cache = cache
+    try:
+        _widgets_mem_mtime = os.path.getmtime(WIDGETS_CACHE_PATH)
+    except OSError:
+        pass
 
 
 def http_fetch_bytes(url: str, timeout: int = 8) -> bytes:
@@ -549,12 +565,20 @@ def default_db() -> dict:
     }
 
 
+_db_mem_cache = None
+_db_mem_mtime = 0.0
+
+
 def load_db() -> dict:
+    global _db_mem_cache, _db_mem_mtime
     if not os.path.exists(DB_PATH):
         data = default_db()
         save_db(data)
         return data
     try:
+        mt = os.path.getmtime(DB_PATH)
+        if _db_mem_cache is not None and mt == _db_mem_mtime:
+            return _db_mem_cache
         with open(DB_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict):
@@ -573,6 +597,9 @@ def load_db() -> dict:
             changed = True
         if changed:
             save_db(data)
+        else:
+            _db_mem_cache = data
+            _db_mem_mtime = mt
         return data
     except Exception:
         data = default_db()
@@ -581,10 +608,16 @@ def load_db() -> dict:
 
 
 def save_db(data: dict) -> None:
+    global _db_mem_cache, _db_mem_mtime
     tmp = DB_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, DB_PATH)
+    _db_mem_cache = data
+    try:
+        _db_mem_mtime = os.path.getmtime(DB_PATH)
+    except OSError:
+        pass
 
 
 def normalize_digits(s: str) -> str:
@@ -1812,6 +1845,12 @@ class HotelRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_json(404, {"error": {"message": "Endpoint not found"}})
 
 
+class HighConcurrencyHTTPServer(http.server.ThreadingHTTPServer):
+    request_queue_size = 512
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 def main():
     global PUBLIC_URL
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8899
@@ -1832,7 +1871,7 @@ def main():
                 tv_screens[sid] = dict(entry)
     start_cache_sync_worker()
     start_udp_discovery_responder(port)
-    server = http.server.ThreadingHTTPServer((bind_host, port), HotelRequestHandler)
+    server = HighConcurrencyHTTPServer((bind_host, port), HotelRequestHandler)
     print(f"Masaken Al-Nuzha Local Server running on http://{bind_host}:{port}/", flush=True)
     if PUBLIC_URL:
         print(f"Configured public guest URL: {PUBLIC_URL}", flush=True)
