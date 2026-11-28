@@ -12,6 +12,8 @@ scripts/cached_channels.m3u
 scripts/channel1_media/
 scripts/apk_dist/
 android/keystore/
+.agents/rules/local-ops.md
+.ai_local_*
 # Python caches
 __pycache__/
 *.py[cod]
