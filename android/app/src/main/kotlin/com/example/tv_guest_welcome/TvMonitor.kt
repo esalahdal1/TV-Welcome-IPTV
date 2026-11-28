@@ -107,8 +107,8 @@ object TvMonitor {
 
             val versionName = runCatching {
                 @Suppress("DEPRECATION")
-                ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "3.4"
-            }.getOrDefault("3.4")
+                ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "3.5"
+            }.getOrDefault("3.5")
 
             val payload = JSONObject().apply {
                 put("room", if (mode == SetupActivity.MODE_LOBBY) "" else room)

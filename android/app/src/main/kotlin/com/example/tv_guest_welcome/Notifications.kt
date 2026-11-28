@@ -47,7 +47,7 @@ object Notifications {
     private const val KEY_DEFERRED = "deferred_json"
 
     private const val CHANNEL_ID = "masaken_notifications"
-    private const val CHANNEL_NAME = "masaken hotel"
+    private const val CHANNEL_NAME = "MAQAM TV"
 
     private const val ACTION_POLL = "com.example.tv_guest_welcome.ACTION_POLL_NOTIFICATIONS"
     private const val REQUEST_CODE_POLL = 44021
@@ -156,7 +156,7 @@ object Notifications {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("masaken hotel")
+            .setContentTitle("مَقَام — مساكن النزهة")
             .setContentText(message)
             .setAutoCancel(true)
             .setContentIntent(pending)

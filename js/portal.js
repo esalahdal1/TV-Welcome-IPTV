@@ -53,9 +53,9 @@
         var el = $('guestName');
         if (!el || el.classList.contains('is-loading')) return;
         var s = parseFloat(global.getComputedStyle(global.document.documentElement).getPropertyValue('--stage-scale')) || 1;
-        var maxHeight = 200 * s;
-        var maxFont = 96;
-        var minFont = 50;
+        var maxHeight = 190 * s;
+        var maxFont = 82;
+        var minFont = 44;
         el.style.fontSize = maxFont + 'px';
         for (var size = maxFont; size >= minFont; size -= 2) {
             el.style.fontSize = size + 'px';
@@ -170,6 +170,7 @@
         el.classList.remove('is-loading');
         el.innerText = state.guestNameValue || i18n.dict().defaultGuest;
         fitGuestName();
+        populateMobileQr($('heroQrBox'), $('heroQrTitle'), null, i18n.dict().heroQrLabel);
     }
 
     async function fetchHotelSettings() {
@@ -496,8 +497,8 @@
         dock.innerHTML = items.map(function (it, idx) {
             var focused = (state.activeOverlay === null && idx === state.dockIndex) ? ' is-focused' : '';
             return '<button type="button" class="dock-btn' + focused + '" data-dock-idx="' + idx + '" data-dock-id="' + it.id + '">' +
-                '<i class="fas ' + it.icon + '"></i>' +
-                '<span class="dock-btn-title">' + escapeHtml(it.title) + '</span>' +
+                '<span class="dock-accent"></span>' +
+                '<div class="dock-btn-head"><i class="fas ' + it.icon + '"></i><span class="dock-btn-title">' + escapeHtml(it.title) + '</span></div>' +
                 '<span class="dock-btn-sub">' + escapeHtml(it.sub) + '</span>' +
                 '</button>';
         }).join('');
@@ -528,12 +529,17 @@
         };
 
         setText('hotelNameText', d.hotelBrand);
-        setText('weatherCityText', d.cityLabel);
+        setText('brandCityText', d.cityLabel);
+        setText('weatherCityText', d.cityShort || d.cityLabel);
         setText('roomLabelText', d.roomLabel);
         setText('roomPinLabelText', d.roomPinPillLabel);
         setText('stayLabelText', d.stayLabel);
         setText('stayValueText', d.stayValue);
         setText('welcomeSubText', d.welcomeSub);
+        setText('heroWatchLabel', d.heroWatchLabel);
+        setText('heroServicesLabel', d.heroServicesLabel);
+        setText('heroQrTitle', d.heroQrLabel);
+        setText('heroQrSub', d.heroQrSub);
         setText('companyNameText', d.companyName);
         setText('companySubText', d.companySub);
 
@@ -1009,6 +1015,12 @@
 
     function bindEvents() {
         global.addEventListener('resize', applyStageScale);
+
+        var heroWatchBtn = $('heroWatchBtn');
+        if (heroWatchBtn) heroWatchBtn.addEventListener('click', function () { activateDockItem('tv'); });
+
+        var heroServicesBtn = $('heroServicesBtn');
+        if (heroServicesBtn) heroServicesBtn.addEventListener('click', function () { activateDockItem('services'); });
 
         var launchBtn = $('castLaunchReceiverBtn');
         if (launchBtn) launchBtn.addEventListener('click', launchCastReceiver);

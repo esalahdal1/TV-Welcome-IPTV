@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مساكن النزهة - ترحيب النزلاء</title>
-    <link rel="icon" href="3%20small.png">
+    <title>مَقَام — مساكن النزهة (MAQAM TV)</title>
+    <link rel="icon" href="assets/maqam-emblem.svg" type="image/svg+xml">
     <script src="vendor/qrcode/qrcode.min.js?v=38"></script>
     <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=38">
-    <link rel="stylesheet" href="css/app.css?v=38">
+    <link rel="stylesheet" href="css/app.css?v=41">
 </head>
 <body>
     <div class="animated-bg"></div>
@@ -19,52 +19,39 @@
 
     <div id="stage" class="stage">
         <div class="main-content">
-            <div class="top-bar fade-in">
-                <div class="clock-container panel">
-                    <div id="time" class="time">00:00</div>
-                    <div id="date" class="date">—</div>
-                </div>
-
-                <div id="prayerWidget" class="prayer-container panel">
-                    <div class="prayer-header">
-                        <div class="prayer-title">
-                            <i class="fas fa-mosque"></i>
-                            <span id="prayerTitleText">مواقيت الصلاة — جدة</span>
-                        </div>
-                        <div id="prayerNext" class="prayer-next" style="display:none">—</div>
-                    </div>
-                    <div id="prayerGrid" class="prayer-grid"></div>
-                </div>
-
-                <div id="weather" class="weather-container panel">
-                    <div class="weather-row">
-                        <div class="weather-info">
-                            <i id="weather-icon" class="fas fa-cloud-sun"></i>
-                            <span id="temp">--°C</span>
-                        </div>
-                        <div class="weather-meta">
-                            <div id="weatherDesc" class="weather-desc">—</div>
-                            <div id="weatherCityText" class="weather-city">جدة - حي النزهة، المملكة العربية السعودية</div>
-                        </div>
+            <header class="top-bar fade-in">
+                <div class="brand-lockup">
+                    <img src="assets/maqam-emblem.svg" alt="MAQAM TV" class="brand-emblem">
+                    <div class="brand-copy">
+                        <div id="hotelNameText" class="hotel-name">مَقَام • مساكن النزهة</div>
+                        <div id="brandCityText" class="brand-sub">جدة • حي النزهة، المملكة العربية السعودية</div>
                     </div>
                 </div>
-            </div>
+
+                <div class="ambient-strip panel">
+                    <div id="prayerNext" class="prayer-next" style="display:none">—</div>
+                    <span class="ambient-sep">•</span>
+                    <div id="weather" class="weather-inline">
+                        <i id="weather-icon" class="fas fa-cloud-sun"></i>
+                        <span id="temp">--°C</span>
+                        <span id="weatherDesc" class="weather-desc-inline">—</span>
+                    </div>
+                    <span class="ambient-sep">•</span>
+                    <div class="clock-inline">
+                        <span id="time" class="time">00:00</span>
+                    </div>
+                </div>
+            </header>
 
             <div id="roomHeroSection" class="hero fade-in">
-                <div class="hero-card panel">
-                    <div class="hero-inner">
-                        <div class="hotel-brand">
-                            <div id="hotelNameText" class="hotel-name">مساكن النزهة</div>
-                            <div class="brand-line"></div>
-                        </div>
-                        <div id="welcomeMsg" class="welcome-msg">مرحباً بك</div>
-                        <div id="guestName" class="guest-name is-loading">...</div>
+                <div class="hero-cinema-grid">
+                    <div class="hero-primary">
                         <div class="pill-row">
                             <div id="roomPill" class="pill is-gold" style="display:none">
                                 <span id="roomLabelText">رقم الغرفة</span>
                                 <strong id="roomNumberText">—</strong>
                             </div>
-                            <div id="roomPinPill" class="pill is-gold" style="display:none">
+                            <div id="roomPinPill" class="pill is-teal" style="display:none">
                                 <span id="roomPinLabelText">رمز التوصيل (PIN)</span>
                                 <strong id="roomPinBadgeValue">----</strong>
                             </div>
@@ -73,8 +60,43 @@
                                 <strong id="stayValueText">إقامة مريحة</strong>
                             </div>
                         </div>
+                        <div id="welcomeMsg" class="welcome-msg">مرحباً بك</div>
+                        <div id="guestName" class="guest-name is-loading">...</div>
                         <div id="welcomeSubText" class="welcome-sub">يسعدنا جداً استضافتك، ونتمنى لك إقامة هادئة ومميزة في رحاب مساكن النزهة.</div>
+                        <div class="hero-cta-row">
+                            <button id="heroWatchBtn" type="button" class="hero-cta-btn is-gold">
+                                <i class="fas fa-play"></i>
+                                <span id="heroWatchLabel">القنوات المباشرة</span>
+                            </button>
+                            <button id="heroServicesBtn" type="button" class="hero-cta-btn">
+                                <i class="fas fa-concierge-bell"></i>
+                                <span id="heroServicesLabel">خدمات الغرفة</span>
+                            </button>
+                        </div>
                     </div>
+
+                    <aside class="hero-companion panel">
+                        <div class="companion-head">
+                            <div>
+                                <div class="prayer-title">
+                                    <i class="fas fa-mosque"></i>
+                                    <span id="prayerTitleText">مواقيت الصلاة — جدة</span>
+                                </div>
+                                <div id="date" class="date">—</div>
+                            </div>
+                            <div id="weatherCityText" class="weather-city-tag">جدة - حي النزهة</div>
+                        </div>
+
+                        <div id="prayerGrid" class="prayer-grid"></div>
+
+                        <div class="companion-qr-card">
+                            <div id="heroQrBox" class="hero-qr-mini"></div>
+                            <div class="companion-qr-meta">
+                                <div id="heroQrTitle" class="companion-qr-title">امسح لخدمات الجوال</div>
+                                <div id="heroQrSub" class="companion-qr-sub">Wi-Fi • بث الشاشة • الطلبات</div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
 
@@ -105,11 +127,11 @@
             <div class="bottom-bar fade-in">
                 <div class="footer panel">
                     <div id="logoContainer" class="logo-box">
-                        <img src="3%20small.png" alt="MRC">
+                        <img src="assets/maqam-emblem.svg" alt="MAQAM TV">
                     </div>
                     <div class="company-info">
-                        <div id="companyNameText" class="company-name">شركة مساكن الرفاهية</div>
-                        <div id="companySubText" class="company-sub">MASAKEN ALRAFAHYA COMPANY</div>
+                        <div id="companyNameText" class="company-name">مَقَام • شركة مساكن الرفاهية</div>
+                        <div id="companySubText" class="company-sub">MAQAM TV • MASAKEN ALRAFAHYA</div>
                     </div>
                 </div>
 
@@ -194,8 +216,8 @@
         <div class="mob-shell">
             <header class="mob-header panel">
                 <div>
-                    <div id="mobBrandTitle" class="mob-brand">مساكن النزهة</div>
-                    <div id="mobSubtitle" class="mob-sub">بوابة خدمات الغرفة على جوالك</div>
+                    <div id="mobBrandTitle" class="mob-brand">مَقَام • مساكن النزهة</div>
+                    <div id="mobSubtitle" class="mob-sub">بوابة خدمات الغرفة على جوالك — MAQAM TV</div>
                 </div>
                 <div class="mob-header-actions">
                     <span id="mobRoomBadge" class="mob-room-pill">غرفة 101</span>
@@ -303,7 +325,7 @@
         <div class="staff-card panel">
             <div class="staff-topbar">
                 <div>
-                    <div class="admin-title">لوحة الاستقبال وإدارة الفندق — مساكن النزهة</div>
+                    <div class="admin-title">مَقَام — لوحة الاستقبال وإدارة الفندق (مساكن النزهة)</div>
                     <div id="staffSecurityBadge" class="staff-sec-badge is-legacy">جارٍ التحقق...</div>
                 </div>
                 <div class="staff-top-actions">
@@ -532,15 +554,15 @@
         </div>
     </div>
 
-    <script defer src="js/config.js?v=40"></script>
-    <script defer src="js/i18n.js?v=40"></script>
-    <script defer src="js/supabase-client.js?v=40"></script>
-    <script defer src="js/webrtc-cast.js?v=40"></script>
-    <script defer src="js/widgets.js?v=40"></script>
-    <script defer src="js/portal.js?v=40"></script>
-    <script defer src="js/mobile-portal.js?v=40"></script>
-    <script defer src="js/lobby.js?v=40"></script>
-    <script defer src="js/staff.js?v=40"></script>
-    <script defer src="js/main.js?v=40"></script>
+    <script defer src="js/config.js?v=41"></script>
+    <script defer src="js/i18n.js?v=41"></script>
+    <script defer src="js/supabase-client.js?v=41"></script>
+    <script defer src="js/webrtc-cast.js?v=41"></script>
+    <script defer src="js/widgets.js?v=41"></script>
+    <script defer src="js/portal.js?v=41"></script>
+    <script defer src="js/mobile-portal.js?v=41"></script>
+    <script defer src="js/lobby.js?v=41"></script>
+    <script defer src="js/staff.js?v=41"></script>
+    <script defer src="js/main.js?v=41"></script>
 </body>
 </html>

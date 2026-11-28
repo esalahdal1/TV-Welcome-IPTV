@@ -76,13 +76,13 @@ class ScreenService : Service() {
         val channelId = "masaken_boot"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
-            val channel = NotificationChannel(channelId, "masaken hotel", NotificationManager.IMPORTANCE_LOW)
+            val channel = NotificationChannel(channelId, "MAQAM TV", NotificationManager.IMPORTANCE_LOW)
             manager.createNotificationChannel(channel)
         }
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.stat_notify_more)
-            .setContentTitle("masaken hotel")
+            .setContentTitle("MAQAM TV")
             .setContentText("تشغيل تلقائي")
             .setOngoing(true)
             .build()

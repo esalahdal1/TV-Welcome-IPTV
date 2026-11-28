@@ -501,7 +501,7 @@ class MainActivity : AppCompatActivity() {
         fun hasNativeMonitor(): Boolean = true
 
         @JavascriptInterface
-        fun getAppVersion(): String = "3.4"
+        fun getAppVersion(): String = "3.5"
 
         @JavascriptInterface
         fun installAppUpdate() {

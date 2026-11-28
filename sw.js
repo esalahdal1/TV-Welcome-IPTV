@@ -1,23 +1,24 @@
-const CACHE_NAME = 'tvip-masaken-v15';
+const CACHE_NAME = 'maqam-tvip-v16';
 const CORE_ASSETS = [
   './',
   './index.html',
   './wall.html',
+  './assets/maqam-emblem.svg',
   './vendor/qrcode/qrcode.min.js?v=38',
   './vendor/fontawesome/css/all.min.css?v=38',
   './vendor/fonts/cairo.css?v=36',
-  './css/app.css?v=38',
+  './css/app.css?v=41',
   './3%20small.png',
-  './js/config.js?v=40',
-  './js/i18n.js?v=40',
-  './js/supabase-client.js?v=40',
-  './js/webrtc-cast.js?v=40',
-  './js/widgets.js?v=40',
-  './js/portal.js?v=40',
-  './js/mobile-portal.js?v=40',
-  './js/lobby.js?v=40',
-  './js/staff.js?v=40',
-  './js/main.js?v=40'
+  './js/config.js?v=41',
+  './js/i18n.js?v=41',
+  './js/supabase-client.js?v=41',
+  './js/webrtc-cast.js?v=41',
+  './js/widgets.js?v=41',
+  './js/portal.js?v=41',
+  './js/mobile-portal.js?v=41',
+  './js/lobby.js?v=41',
+  './js/staff.js?v=41',
+  './js/main.js?v=41'
 ];
 
 self.addEventListener('install', (event) => {

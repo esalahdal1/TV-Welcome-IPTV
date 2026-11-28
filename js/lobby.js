@@ -175,9 +175,11 @@
         if ($('lobbyTitle')) $('lobbyTitle').innerText = s.title;
         if ($('lobbyBody')) $('lobbyBody').innerText = s.body;
         if ($('lobbyBadgeText')) $('lobbyBadgeText').innerText = lb.badge;
+        if ($('hotelNameText')) $('hotelNameText').innerText = d.hotelBrand;
+        if ($('brandCityText')) $('brandCityText').innerText = d.cityLabel;
         if ($('companyNameText')) $('companyNameText').innerText = d.companyName;
         if ($('companySubText')) $('companySubText').innerText = d.companySub;
-        if ($('weatherCityText')) $('weatherCityText').innerText = d.cityLabel;
+        if ($('weatherCityText')) $('weatherCityText').innerText = d.cityShort || d.cityLabel;
         if ($('remoteHint')) $('remoteHint').innerHTML = lb.hintHtml;
 
         var grid = $('lobbyHighlights');
